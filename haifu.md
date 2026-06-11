@@ -15,8 +15,7 @@ Windows 11上で、少し昔のWindows風の雰囲気を楽しむためのブラ
 | 形式 | Windows向けインストーラー |
 | 対応OS | Windows 11 |
 
-<a class="download-button" href="downloads/HaniClassicBrowserSetup.exe" download>Hani Classic Browser をダウンロード</a>
-
+<a class="download-button" href="https://github.com/hani2-UC/Hani-page/releases/latest/download/HaniClassicBrowserSetup.1.exe">Hani Classic Browser をダウンロード</a>
 
 ---
 
