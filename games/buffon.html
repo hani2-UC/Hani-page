@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>バーチャルビュフォンの針</title>
+<style>
+:root{
+  --bg:#ffffff;
+  --panel:#f0f0f0;
+  --panel2:#ffffff;
+  --border:#9a9a9a;
+  --borderDark:#666666;
+  --text:#111111;
+  --muted:#444444;
+  --button:#e6e6e6;
+  --buttonActive:#d0d0d0;
+  --line:#202020;
+  --hit:#cc5500;
+  --bad:#b00020;
+}
+*{box-sizing:border-box}
+html,body{
+  margin:0;
+  height:100%;
+  overflow:hidden;
+  background:#ffffff;
+  color:var(--text);
+  font-family:"MS UI Gothic","Yu Gothic UI","Meiryo",system-ui,sans-serif;
+  font-size:13px;
+}
+body{display:grid;grid-template-rows:auto 1fr}
+header{
+  padding:8px 10px;
+  border-bottom:1px solid var(--borderDark);
+  background:#e9e9e9;
+}
+h1{
+  margin:0;
+  font-size:16px;
+  font-weight:400;
+}
+main{
+  min-height:0;
+  display:grid;
+  grid-template-columns:1fr 330px;
+  gap:8px;
+  padding:8px;
+  background:#ffffff;
+}
+.stage{
+  position:relative;
+  min-width:0;
+  border:2px inset #d0d0d0;
+  overflow:hidden;
+  background:#ffffff;
+}
+canvas{
+  display:block;
+  width:100%;
+  height:100%;
+  touch-action:none;
+  cursor:default;
+}
+.dragging canvas{cursor:grabbing}
+.toast{
+  position:absolute;
+  right:8px;
+  top:8px;
+  min-width:110px;
+  padding:5px 7px;
+  border:1px solid var(--border);
+  background:#f8f8f8;
+  font-size:12px;
+  line-height:1.4;
+  text-align:center;
+  pointer-events:none;
+  opacity:0;
+  transition:.1s opacity;
+}
+.toast.show{opacity:1}
+.toast .big{
+  display:block;
+  font-size:18px;
+  font-weight:400;
+  color:#000000;
+}
+.toast.hit .big{color:var(--hit)}
+.toast.invalid .big{color:var(--bad)}
+aside{
+  border:2px outset #d0d0d0;
+  background:var(--panel);
+  padding:8px;
+  overflow:auto;
+}
+.statGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:6px;
+  margin-bottom:8px;
+}
+.stat{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  padding:6px;
+  min-height:50px;
+}
+.label{
+  font-size:12px;
+  color:var(--muted);
+  margin-bottom:3px;
+}
+.num{
+  font-variant-numeric:tabular-nums;
+  font-size:20px;
+  font-weight:400;
+  line-height:1.1;
+}
+.measure{font-size:24px;color:#000000}
+.hitNum{color:var(--hit)}
+.section{
+  margin:8px 0;
+  padding:7px;
+  border:1px solid var(--border);
+  background:#f7f7f7;
+}
+.section:first-of-type{margin-top:0}
+.section h2{
+  font-size:13px;
+  font-weight:400;
+  margin:0 0 6px;
+  color:#000000;
+}
+.modeRow{display:flex;gap:5px}
+.modeRow button{flex:1}
+.buttons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:5px;
+}
+button{
+  appearance:none;
+  border:2px outset #d6d6d6;
+  background:var(--button);
+  color:#000000;
+  border-radius:0;
+  padding:5px 7px;
+  font-weight:400;
+  cursor:pointer;
+  font-family:inherit;
+  font-size:13px;
+}
+button:hover{background:#eeeeee}
+button:active{
+  border-style:inset;
+  background:var(--buttonActive);
+  transform:none;
+}
+button.toggleOn{
+  border-style:inset;
+  background:#dcdcdc;
+  outline:1px dotted #333333;
+  outline-offset:-4px;
+}
+button:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+.control{margin:8px 0}
+.row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:2px;
+}
+.row span:first-child{font-size:12px;color:#000000}
+.value{
+  font-size:12px;
+  color:#333333;
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+input[type="range"]{
+  width:100%;
+  accent-color:#666666;
+}
+.check{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  padding:5px;
+  background:#f7f7f7;
+  border:1px solid var(--border);
+  font-size:12px;
+  color:#000000;
+  cursor:pointer;
+  margin-top:6px;
+}
+.info{
+  margin-top:6px;
+  padding:5px;
+  border:1px solid var(--border);
+  background:#ffffff;
+  color:#000000;
+  font-size:12px;
+}
+.modalBackdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.25);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:20;
+}
+.modalBox{
+  width:min(420px, calc(100vw - 32px));
+  background:#f0f0f0;
+  border:2px outset #d0d0d0;
+  padding:10px;
+}
+.modalTitle{
+  font-size:14px;
+  margin:0 0 8px;
+}
+.modalText{
+  font-size:12px;
+  line-height:1.5;
+  margin:0 0 10px;
+}
+.modalButtons{
+  display:flex;
+  justify-content:flex-end;
+  gap:6px;
+}
+.hidden{display:none !important}
+@media(max-width:900px){
+  body{overflow:auto}
+  main{grid-template-columns:1fr;grid-template-rows:62vh auto}
+  aside{overflow:visible}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>バーチャルビュフォンの針</h1>
+</header>
+<main>
+  <section class="stage" id="stage">
+    <canvas id="canvas"></canvas>
+    <div class="toast" id="toast">
+      <span class="big" id="toastBig"></span>
+      <span id="toastSmall"></span>
+    </div>
+  </section>
+
+  <aside>
+    <div class="statGrid">
+      <div class="stat">
+        <div class="label">測定値</div>
+        <div class="num measure" id="measureValue">---</div>
+      </div>
+      <div class="stat">
+        <div class="label">交差数</div>
+        <div class="num hitNum" id="hitCount">0</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>モード</h2>
+      <div class="modeRow">
+        <button id="modeManual" class="toggleOn">手投げ</button>
+        <button id="modeRandom">ランダム</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>操作</h2>
+      <div id="manualControls" class="buttons">
+        <button id="newNeedle">次の針</button>
+        <button id="undoLast">最後を戻す</button>
+        <button id="resetAll">リセット</button>
+      </div>
+      <div id="randomControls" class="buttons hidden">
+        <button id="rand1">1本</button>
+        <button id="rand100">100本</button>
+        <button id="rand1000">1000本</button>
+        <button id="autoBtn">自動投入</button>
+        <button id="resetRandom">リセット</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>表示</h2>
+      <div class="control">
+        <div class="row">
+          <span>残す針の数</span>
+          <span class="value" id="keepValue">1000本</span>
+        </div>
+        <input id="keepSlider" type="range" min="20" max="10000" value="1000">
+        <button id="keepInfinite" type="button" style="margin-top:6px;width:100%;">∞</button>
+      </div>
+      <label class="check"><input type="checkbox" id="showGhost" checked> 引っ張り線を表示</label>
+      <label class="check"><input type="checkbox" id="autoNext" checked> 判定後に次の針を出す</label>
+      <div class="info" id="keepInfo">通常モード / 画面上: 0本 / 上限: 1000本</div>
+    </div>
+  </aside>
+</main>
+
+<div class="modalBackdrop hidden" id="infiniteModal">
+  <div class="modalBox">
+    <div class="modalTitle">確認</div>
+    <p class="modalText">∞モードでは、画面に残す針の上限がなくなります。針が増えるほどブラウザが重くなる可能性があります。続けますか？</p>
+    <div class="modalButtons">
+      <button type="button" id="modalCancel">キャンセル</button>
+      <button type="button" id="modalConfirm">有効にする</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const stage = document.getElementById('stage');
+const $ = (id) => document.getElementById(id);
+
+const UI = {
+  measureValue: $('measureValue'),
+  hitCount: $('hitCount'),
+  modeManual: $('modeManual'),
+  modeRandom: $('modeRandom'),
+  manualControls: $('manualControls'),
+  randomControls: $('randomControls'),
+  newNeedle: $('newNeedle'),
+  undoLast: $('undoLast'),
+  resetAll: $('resetAll'),
+  rand1: $('rand1'),
+  rand100: $('rand100'),
+  rand1000: $('rand1000'),
+  autoBtn: $('autoBtn'),
+  resetRandom: $('resetRandom'),
+  keepSlider: $('keepSlider'),
+  keepValue: $('keepValue'),
+  keepInfinite: $('keepInfinite'),
+  keepInfo: $('keepInfo'),
+  showGhost: $('showGhost'),
+  autoNext: $('autoNext'),
+  toast: $('toast'),
+  toastBig: $('toastBig'),
+  toastSmall: $('toastSmall'),
+  infiniteModal: $('infiniteModal'),
+  modalCancel: $('modalCancel'),
+  modalConfirm: $('modalConfirm')
+};
+
+const CONFIG = {
+  needleLength: 78,
+  lineGap: 104,
+  baseThrowPower: 1.0,
+  gravity: 1700,
+  bounce: 0.28,
+  friction: 7,
+  spinKeep: 0.58
+};
+
+let W = 0;
+let H = 0;
+let dpr = 1;
+let lastTime = performance.now();
+
+let mode = 'manual';
+let activeNeedle = null;
+let movingNeedles = [];
+let settledNeedles = [];
+let totalValidTrials = 0;
+let totalHits = 0;
+let invalidCount = 0;
+let lastResults = [];
+
+let autoMode = false;
+let autoCarry = 0;
+let autoNextTimer = 0;
+
+let dragging = false;
+let dragPointerId = null;
+let keepInfiniteMode = false;
+let nextNeedleId = 1;
+let toastTimer = 0;
+
+const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const rand = (a, b) => a + Math.random() * (b - a);
+const vlen = (x, y) => Math.hypot(x, y);
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = Math.max(320, Math.floor(r.width));
+  H = Math.max(320, Math.floor(r.height));
+  canvas.width = Math.floor(W * dpr);
+  canvas.height = Math.floor(H * dpr);
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+
+function launchZone() {
+  const w = clamp(W * 0.23, 150, 250);
+  return { x: 0, y: 0, w: w, h: H };
+}
+
+function boardRect() {
+  const lz = launchZone();
+  return { x: lz.w + 6, y: 0, w: Math.max(40, W - lz.w - 6), h: H };
+}
+
+function anchorPoint() {
+  const lz = launchZone();
+  return { x: lz.w * 0.72, y: H * 0.5 };
+}
+
+function boardOffset() {
+  return (H % CONFIG.lineGap) / 2;
+}
+
+function getMouse(e) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - r.left) * (W / r.width),
+    y: (e.clientY - r.top) * (H / r.height)
+  };
+}
+
+class Needle {
+  constructor(x, y, origin) {
+    this.id = nextNeedleId++;
+    this.x = x;
+    this.y = y;
+    this.L = CONFIG.needleLength;
+    this.a = 0;
+    this.vx = 0;
+    this.vy = 0;
+    this.va = 0;
+    this.z = 38;
+    this.vz = 0;
+    this.state = 'ready';
+    this.origin = origin;
+    this.hit = false;
+    this.valid = false;
+    this.age = 0;
+    this.bounces = 0;
+    this.held = false;
+    this.anchor = null;
+    this.trail = [];
+  }
+
+  endpoints() {
+    const hx = Math.cos(this.a) * this.L * 0.5;
+    const hy = Math.sin(this.a) * this.L * 0.5;
+    return [this.x - hx, this.y - hy, this.x + hx, this.y + hy];
+  }
+
+  distTo(px, py) {
+    const [x1, y1, x2, y2] = this.endpoints();
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const denom = dx * dx + dy * dy || 1;
+    const t = clamp(((px - x1) * dx + (py - y1) * dy) / denom, 0, 1);
+    const x = x1 + dx * t;
+    const y = y1 + dy * t;
+    return vlen(px - x, py - y);
+  }
+
+  wallCollision() {
+    const pad = 8;
+    const [x1, y1, x2, y2] = this.endpoints();
+    let sx = 0;
+    let sy = 0;
+    const minX = Math.min(x1, x2);
+    const maxX = Math.max(x1, x2);
+    const minY = Math.min(y1, y2);
+    const maxY = Math.max(y1, y2);
+
+    if (minX < pad) sx = pad - minX;
+    if (maxX > W - pad) sx = (W - pad) - maxX;
+    if (minY < pad) sy = pad - minY;
+    if (maxY > H - pad) sy = (H - pad) - maxY;
+
+    if (sx || sy) {
+      this.x += sx;
+      this.y += sy;
+      if (sx) { this.vx *= -0.42; this.va *= 0.75; }
+      if (sy) { this.vy *= -0.42; this.va *= 0.75; }
+      this.vx *= 0.78;
+      this.vy *= 0.78;
+    }
+  }
+
+  update(dt) {
+    if (this.state !== 'moving') return false;
+
+    this.age += dt;
+    this.trail.push([this.x, this.y]);
+    if (this.trail.length > 24) this.trail.shift();
+
+    this.vz -= CONFIG.gravity * dt;
+    this.z += this.vz * dt;
+
+    if (this.z <= 0) {
+      this.z = 0;
+      if (Math.abs(this.vz) > 52 && this.bounces < 7) {
+        this.bounces += 1;
+        this.vz = -this.vz * CONFIG.bounce;
+        this.vx *= 0.72 + Math.random() * 0.18;
+        this.vy *= 0.72 + Math.random() * 0.18;
+        this.va *= 0.55 + Math.random() * 0.20;
+      } else {
+        this.vz = 0;
+      }
+    }
+
+    if (this.z === 0) {
+      const f = Math.exp(-CONFIG.friction * dt);
+      const rf = Math.exp(-(CONFIG.friction * (1.35 - CONFIG.spinKeep)) * dt);
+      this.vx *= f;
+      this.vy *= f;
+      this.va *= rf;
+    } else {
+      const air = Math.exp(-0.18 * dt);
+      this.vx *= air;
+      this.vy *= air;
+      this.va *= air;
+    }
+
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.a += this.va * dt;
+    this.wallCollision();
+
+    if (this.z === 0 && this.age > 0.35 && vlen(this.vx, this.vy) < 5.2 && Math.abs(this.va) < 0.065) {
+      this.vx = 0;
+      this.vy = 0;
+      this.va = 0;
+      this.vz = 0;
+      this.state = 'settled';
+      return true;
+    }
+    return false;
+  }
+}
+
+function createManualNeedle() {
+  const p = anchorPoint();
+  activeNeedle = new Needle(p.x, p.y, 'manual');
+  activeNeedle.state = 'ready';
+  activeNeedle.a = 0;
+  activeNeedle.z = 34;
+  activeNeedle.anchor = { x: p.x, y: p.y };
+}
+
+function updateDraggedNeedle(x, y) {
+  if (!activeNeedle || !activeNeedle.anchor) return;
+
+  const margin = activeNeedle.L / 2 + 10;
+  activeNeedle.x = clamp(x, margin, W - margin);
+  activeNeedle.y = clamp(y, margin, H - margin);
+
+  const dx = activeNeedle.x - activeNeedle.anchor.x;
+  const dy = activeNeedle.y - activeNeedle.anchor.y;
+  if (Math.hypot(dx, dy) > 4) {
+    activeNeedle.a = Math.atan2(dy, dx);
+  }
+}
+
+function startManualDrag(e) {
+  if (mode !== 'manual') return;
+  if (!activeNeedle) createManualNeedle();
+  if (!activeNeedle || activeNeedle.state === 'moving') return;
+
+  const pt = getMouse(e);
+  const lz = launchZone();
+  if (pt.x > lz.w - 6) return;
+  if (activeNeedle.distTo(pt.x, pt.y) > 34) return;
+
+  dragPointerId = e.pointerId;
+  canvas.setPointerCapture(e.pointerId);
+  dragging = true;
+  stage.classList.add('dragging');
+
+  activeNeedle.held = true;
+  activeNeedle.state = 'held';
+  activeNeedle.z = 46;
+  activeNeedle.vx = 0;
+  activeNeedle.vy = 0;
+  activeNeedle.va = 0;
+  activeNeedle.vz = 0;
+  updateDraggedNeedle(pt.x, pt.y);
+}
+
+function releaseManual() {
+  if (!dragging || !activeNeedle || !activeNeedle.anchor) return;
+
+  dragging = false;
+  stage.classList.remove('dragging');
+  dragPointerId = null;
+
+  const dx = activeNeedle.x - activeNeedle.anchor.x;
+  const dy = activeNeedle.y - activeNeedle.anchor.y;
+  const pull = Math.hypot(dx, dy);
+
+  const launchVX = dx * 6.5 * CONFIG.baseThrowPower;
+  const launchVY = dy * 6.5 * CONFIG.baseThrowPower;
+
+  activeNeedle.held = false;
+  activeNeedle.state = 'moving';
+  activeNeedle.age = 0;
+  activeNeedle.vx = clamp(launchVX, -2600, 2600);
+  activeNeedle.vy = clamp(launchVY, -2600, 2600);
+  activeNeedle.va = clamp((dy * 0.06 - dx * 0.015), -14, 14);
+  activeNeedle.z = 18 + pull * 0.55;
+  activeNeedle.vz = 20 + pull * 0.9;
+
+  movingNeedles.push(activeNeedle);
+  activeNeedle = null;
+}
+
+function automatedThrow(count) {
+  const lz = launchZone();
+  const board = boardRect();
+
+  for (let i = 0; i < count; i++) {
+    const startX = lz.w * rand(0.50, 0.78);
+    const startY = rand(CONFIG.needleLength / 2 + 14, H - CONFIG.needleLength / 2 - 14);
+    const targetX = rand(board.x + CONFIG.needleLength, W - CONFIG.needleLength);
+    const targetY = rand(CONFIG.needleLength, H - CONFIG.needleLength);
+
+    const dx = targetX - startX;
+    const dy = targetY - startY;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const speed = clamp(dist * 1.35, 260, 1500);
+
+    const n = new Needle(startX, startY, 'random');
+    n.state = 'moving';
+    n.a = Math.atan2(dy, dx) + rand(-0.45, 0.45);
+    n.z = rand(26, 90);
+    n.vx = (dx / dist) * speed * CONFIG.baseThrowPower;
+    n.vy = (dy / dist) * speed * CONFIG.baseThrowPower;
+    n.vz = rand(40, 140);
+    n.va = clamp(rand(-5, 5) + dy * 0.01, -14, 14);
+    movingNeedles.push(n);
+  }
+}
+
+function needleInsideBoard(n) {
+  const b = boardRect();
+  const pad = 8;
+  const [x1, y1, x2, y2] = n.endpoints();
+  return Math.min(x1, x2) >= b.x + pad &&
+         Math.max(x1, x2) <= b.x + b.w - pad &&
+         Math.min(y1, y2) >= pad &&
+         Math.max(y1, y2) <= H - pad;
+}
+
+function crossesLine(n) {
+  const hy = Math.sin(n.a) * n.L * 0.5;
+  const y1 = n.y - hy;
+  const y2 = n.y + hy;
+  const minY = Math.min(y1, y2);
+  const maxY = Math.max(y1, y2);
+  const off = boardOffset();
+  const first = Math.ceil((minY - off) / CONFIG.lineGap);
+  const y = off + first * CONFIG.lineGap;
+  return y >= minY && y <= maxY;
+}
+
+function trimSettled() {
+  if (keepInfiniteMode) return;
+  const limit = Number(UI.keepSlider.value);
+  if (settledNeedles.length > limit) {
+    settledNeedles.splice(0, settledNeedles.length - limit);
+  }
+}
+
+function finalizeNeedle(n) {
+  n.valid = needleInsideBoard(n);
+  n.hit = n.valid ? crossesLine(n) : false;
+
+  settledNeedles.push(n);
+  trimSettled();
+  lastResults.push({ needle: n, valid: n.valid, hit: n.hit });
+  if (lastResults.length > 120) lastResults.shift();
+
+  if (n.valid) {
+    totalValidTrials += 1;
+    if (n.hit) totalHits += 1;
+    showToast(n.hit ? 'hit' : 'miss');
+  } else {
+    invalidCount += 1;
+    showToast('invalid');
+  }
+
+  if (mode === 'manual' && UI.autoNext.checked && !activeNeedle) {
+    autoNextTimer = 0.55;
+  }
+}
+
+function undoLast() {
+  const item = lastResults.pop();
+  if (!item) return;
+
+  if (item.valid) {
+    totalValidTrials = Math.max(0, totalValidTrials - 1);
+    if (item.hit) totalHits = Math.max(0, totalHits - 1);
+  } else {
+    invalidCount = Math.max(0, invalidCount - 1);
+  }
+
+  const idx = settledNeedles.indexOf(item.needle);
+  if (idx >= 0) settledNeedles.splice(idx, 1);
+
+  if (mode === 'manual' && !activeNeedle && movingNeedles.length === 0) {
+    createManualNeedle();
+  }
+}
+
+function resetAll() {
+  activeNeedle = null;
+  movingNeedles = [];
+  settledNeedles = [];
+  totalValidTrials = 0;
+  totalHits = 0;
+  invalidCount = 0;
+  lastResults = [];
+  autoMode = false;
+  autoCarry = 0;
+  autoNextTimer = 0;
+  nextNeedleId = 1;
+  dragging = false;
+  dragPointerId = null;
+  toastTimer = 0;
+  stage.classList.remove('dragging');
+  if (mode === 'manual') createManualNeedle();
+}
+
+function switchMode(nextMode) {
+  if (mode === nextMode) return;
+  mode = nextMode;
+  resetAll();
+}
+
+function showToast(kind) {
+  UI.toast.className = 'toast show';
+  if (kind === 'hit') {
+    UI.toast.classList.add('hit');
+    UI.toastBig.textContent = '交差';
+    UI.toastSmall.textContent = totalValidTrials + ' 本目';
+  } else if (kind === 'miss') {
+    UI.toastBig.textContent = '不交差';
+    UI.toastSmall.textContent = totalValidTrials + ' 本目';
+  } else {
+    UI.toast.classList.add('invalid');
+    UI.toastBig.textContent = '無効';
+    UI.toastSmall.textContent = '専用エリア';
+  }
+  toastTimer = 1.5;
+}
+
+
+function openInfiniteModal() {
+  UI.infiniteModal.classList.remove('hidden');
+}
+
+function closeInfiniteModal() {
+  UI.infiniteModal.classList.add('hidden');
+}
+
+function enableInfiniteMode() {
+  keepInfiniteMode = true;
+  UI.keepSlider.value = UI.keepSlider.max;
+  closeInfiniteModal();
+}
+
+function updateUI() {
+  if (totalHits > 0) {
+    const pi = (2 * CONFIG.needleLength * totalValidTrials) / (CONFIG.lineGap * totalHits);
+    UI.measureValue.textContent = pi.toFixed(6);
+  } else {
+    UI.measureValue.textContent = '---';
+  }
+
+  UI.hitCount.textContent = totalHits.toLocaleString('ja-JP');
+
+  if (keepInfiniteMode) {
+    UI.keepSlider.value = UI.keepSlider.max;
+    UI.keepSlider.disabled = true;
+    UI.keepValue.textContent = '∞';
+    UI.keepInfo.textContent = '∞モード / 画面上: ' + settledNeedles.length.toLocaleString('ja-JP') + '本 / 上限: ∞';
+  } else {
+    UI.keepSlider.disabled = false;
+    const limitText = Number(UI.keepSlider.value).toLocaleString('ja-JP');
+    UI.keepValue.textContent = limitText + '本';
+    UI.keepInfo.textContent = '通常モード / 画面上: ' + settledNeedles.length.toLocaleString('ja-JP') + '本 / 上限: ' + limitText + '本';
+  }
+
+  UI.modeManual.classList.toggle('toggleOn', mode === 'manual');
+  UI.modeRandom.classList.toggle('toggleOn', mode === 'random');
+  UI.manualControls.classList.toggle('hidden', mode !== 'manual');
+  UI.randomControls.classList.toggle('hidden', mode !== 'random');
+  UI.autoBtn.classList.toggle('toggleOn', autoMode);
+  UI.keepInfinite.classList.toggle('toggleOn', keepInfiniteMode);
+
+  if (keepInfiniteMode) {
+    UI.keepInfinite.textContent = '∞ 有効（解除）';
+  } else {
+    UI.keepInfinite.textContent = '∞';
+  }
+
+  UI.newNeedle.disabled = !(mode === 'manual' && !activeNeedle && movingNeedles.length === 0);
+  UI.undoLast.disabled = lastResults.length === 0;
+}
+
+function drawBoard() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+
+  const lz = launchZone();
+  const board = boardRect();
+
+  ctx.save();
+  ctx.fillStyle = '#eeeeee';
+  ctx.fillRect(lz.x, lz.y, lz.w, lz.h);
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  ctx.moveTo(lz.w + 2, 0);
+  ctx.lineTo(lz.w + 2, H);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = '#000000';
+  ctx.font = '13px "MS UI Gothic", sans-serif';
+  ctx.fillText('投げる専用エリア', 12, 24);
+  ctx.fillText('無効エリア', 12, 42);
+  ctx.restore();
+
+  const off = boardOffset();
+  for (let y = off; y <= H; y += CONFIG.lineGap) {
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(board.x, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+}
+
+function drawNeedle(n) {
+  const [x1, y1, x2, y2] = n.endpoints();
+  const zOff = Math.min(38, n.z * 0.09);
+
+  if (n.trail.length > 1 && n.state === 'moving') {
+    ctx.save();
+    ctx.lineCap = 'round';
+    for (let i = 1; i < n.trail.length; i++) {
+      ctx.globalAlpha = i / n.trail.length * 0.10;
+      ctx.strokeStyle = '#888888';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(n.trail[i - 1][0], n.trail[i - 1][1]);
+      ctx.lineTo(n.trail[i][0], n.trail[i][1]);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.globalAlpha = clamp(0.34 - n.z * 0.00055, 0.06, 0.34);
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 10;
+  ctx.beginPath();
+  ctx.moveTo(x1 + zOff, y1 + zOff);
+  ctx.lineTo(x2 + zOff, y2 + zOff);
+  ctx.stroke();
+  ctx.restore();
+
+  if (n === activeNeedle && UI.showGhost.checked && n.anchor) {
+    const ax = n.anchor.x;
+    const ay = n.anchor.y;
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.strokeStyle = '#000000';
+    ctx.fillStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(ax, ay);
+    ctx.lineTo(n.x, n.y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(ax, ay, 4, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  const hitState = n.state === 'settled' && n.valid && n.hit;
+  const invalidState = n.state === 'settled' && !n.valid;
+  const held = n.held;
+  const movingState = n.state === 'moving';
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = hitState ? '#cc5500' : invalidState ? '#b00020' : held ? '#000000' : movingState ? '#000000' : '#333333';
+  ctx.lineWidth = hitState ? 7 : 6;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  ctx.strokeStyle = '#777777';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(x1 * 0.96 + x2 * 0.04, y1 * 0.96 + y2 * 0.04);
+  ctx.lineTo(x2 * 0.96 + x1 * 0.04, y2 * 0.96 + y1 * 0.04);
+  ctx.stroke();
+
+  const ca = Math.cos(n.a);
+  const sa = Math.sin(n.a);
+  ctx.fillStyle = hitState ? '#cc5500' : invalidState ? '#b00020' : '#000000';
+  ctx.beginPath();
+  ctx.arc(x1, y1, 3.6, 0, TAU);
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(x2 + ca * 6, y2 + sa * 6);
+  ctx.lineTo(x2 - ca * 5 - sa * 3.5, y2 - sa * 5 + ca * 3.5);
+  ctx.lineTo(x2 - ca * 5 + sa * 3.5, y2 - sa * 5 - ca * 3.5);
+  ctx.closePath();
+  ctx.fill();
+
+  if (hitState || invalidState) {
+    ctx.globalAlpha = 0.48;
+    ctx.strokeStyle = hitState ? '#cc5500' : '#b00020';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, Math.max(18, n.L * 0.34), 0, TAU);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function draw() {
+  drawBoard();
+  for (const n of settledNeedles) drawNeedle(n);
+  for (const n of movingNeedles) drawNeedle(n);
+  if (activeNeedle) drawNeedle(activeNeedle);
+}
+
+function update(realDt) {
+  const dtBase = Math.min(realDt, 0.033);
+  const steps = Math.max(1, Math.ceil(dtBase / 0.010));
+  const dt = dtBase / steps;
+
+  if (mode === 'random' && autoMode) {
+    autoCarry += realDt * 24;
+    const make = Math.floor(autoCarry);
+    if (make > 0) {
+      autoCarry -= make;
+      automatedThrow(Math.min(make, 80));
+    }
+  }
+
+  for (let s = 0; s < steps; s++) {
+    const finished = [];
+    for (const n of movingNeedles) {
+      if (n.update(dt)) finished.push(n);
+    }
+    if (finished.length) {
+      movingNeedles = movingNeedles.filter((n) => !finished.includes(n));
+      for (const n of finished) finalizeNeedle(n);
+    }
+  }
+
+  if (mode === 'manual' && autoNextTimer > 0) {
+    autoNextTimer -= realDt;
+    if (autoNextTimer <= 0 && !activeNeedle && movingNeedles.length === 0) {
+      createManualNeedle();
+    }
+  }
+
+  if (toastTimer > 0) {
+    toastTimer -= realDt;
+    if (toastTimer <= 0) UI.toast.className = 'toast';
+  }
+}
+
+function loop(now) {
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+  update(dt);
+  draw();
+  updateUI();
+  requestAnimationFrame(loop);
+}
+
+canvas.addEventListener('pointerdown', startManualDrag);
+
+canvas.addEventListener('pointermove', (e) => {
+  if (mode !== 'manual' || !dragging || dragPointerId !== e.pointerId || !activeNeedle || !activeNeedle.held) return;
+  const pt = getMouse(e);
+  updateDraggedNeedle(pt.x, pt.y);
+});
+
+canvas.addEventListener('pointerup', (e) => {
+  if (mode !== 'manual' || dragPointerId !== e.pointerId) return;
+  releaseManual();
+});
+
+canvas.addEventListener('pointercancel', (e) => {
+  if (mode !== 'manual' || dragPointerId !== e.pointerId) return;
+  dragging = false;
+  dragPointerId = null;
+  stage.classList.remove('dragging');
+  if (activeNeedle && activeNeedle.anchor) {
+    activeNeedle.held = false;
+    activeNeedle.state = 'ready';
+    activeNeedle.x = activeNeedle.anchor.x;
+    activeNeedle.y = activeNeedle.anchor.y;
+  }
+});
+
+canvas.addEventListener('wheel', (e) => {
+  if (mode !== 'manual') return;
+  e.preventDefault();
+  if (!activeNeedle || activeNeedle.state === 'moving') return;
+  activeNeedle.a += -e.deltaY * 0.0045;
+}, { passive: false });
+
+window.addEventListener('keydown', (e) => {
+  if (e.repeat) return;
+  const k = e.key.toLowerCase();
+
+  if (k === 'r') resetAll();
+  if (k === 'm') switchMode('manual');
+  if (k === 'g') switchMode('random');
+
+  if (mode === 'manual') {
+    if (k === ' ') {
+      e.preventDefault();
+      if (!activeNeedle && movingNeedles.length === 0) createManualNeedle();
+    }
+    if (k === 'q' && activeNeedle && activeNeedle.state !== 'moving') activeNeedle.a -= 0.18;
+    if (k === 'e' && activeNeedle && activeNeedle.state !== 'moving') activeNeedle.a += 0.18;
+  } else {
+    if (k === ' ') {
+      e.preventDefault();
+      automatedThrow(1);
+    }
+    if (k === 'a') autoMode = !autoMode;
+  }
+});
+
+UI.modeManual.addEventListener('click', () => switchMode('manual'));
+UI.modeRandom.addEventListener('click', () => switchMode('random'));
+UI.newNeedle.addEventListener('click', () => {
+  if (mode === 'manual' && !activeNeedle && movingNeedles.length === 0) createManualNeedle();
+});
+UI.undoLast.addEventListener('click', undoLast);
+UI.resetAll.addEventListener('click', resetAll);
+UI.rand1.addEventListener('click', () => automatedThrow(1));
+UI.rand100.addEventListener('click', () => automatedThrow(100));
+UI.rand1000.addEventListener('click', () => automatedThrow(1000));
+UI.autoBtn.addEventListener('click', () => { autoMode = !autoMode; });
+UI.resetRandom.addEventListener('click', resetAll);
+
+UI.keepInfinite.addEventListener('click', () => {
+  if (!keepInfiniteMode) {
+    openInfiniteModal();
+  } else {
+    keepInfiniteMode = false;
+  }
+});
+
+UI.keepSlider.addEventListener('input', () => {
+  if (keepInfiniteMode) keepInfiniteMode = false;
+  trimSettled();
+});
+
+UI.modalCancel.addEventListener('click', closeInfiniteModal);
+UI.modalConfirm.addEventListener('click', enableInfiniteMode);
+UI.infiniteModal.addEventListener('click', (e) => {
+  if (e.target === UI.infiniteModal) closeInfiniteModal();
+});
+
+resize();
+resetAll();
+requestAnimationFrame(loop);
+
+})();
+</script>
+</body>
+</html>

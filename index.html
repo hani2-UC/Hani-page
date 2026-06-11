@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>hani.moe</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <base href="/">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-title">hani.moe</div>
+    <nav>
+      <a href="/index.html?src=index.md">TOP</a>
+      <a href="/index.html?src=profile.md">PROFILE</a>
+      <a href="/index.html?src=works.md">WORKS</a>
+      <a href="/index.html?src=games.md">GAMES</a>
+      <a href="/index.html?src=diary/index.md">DIARY</a>
+      <a href="/index.html?src=haifu.md">HAIFU</a>
+    </nav>
+  </header>
+
+  <main id="content" class="content-box">
+    読み込み中...
+  </main>
+
+  <footer class="site-footer">
+    <a id="raw-link" href="#">Markdownで見る</a>
+  </footer>
+
+  <script>
+    const viewerFile = location.pathname.endsWith("view.html") ? "view.html" : "index.html";
+    let diaryPostsCache = null;
+
+    function escapeHtml(text) {
+      return String(text ?? "").replace(/[&<>'"]/g, char => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;"
+      }[char]));
+    }
+
+    function escapeAttr(text) {
+      return escapeHtml(text).replace(/`/g, "&#96;");
+    }
+
+    function isSafeMarkdownPath(path) {
+      if (!path) return false;
+      if (path.includes("://")) return false;
+      if (path.startsWith("/") || path.startsWith("\\")) return false;
+      if (path.includes("?") || path.includes("&")) return false;
+      if (path.split("/").includes("..")) return false;
+      return path.endsWith(".md");
+    }
+
+    function isRelativeAssetPath(path) {
+      if (!path) return false;
+      if (path.startsWith("#") || path.startsWith("/") || path.startsWith("\\")) return false;
+      if (/^[a-z][a-z0-9+.-]*:/i.test(path)) return false;
+      if (path.split("/").includes("..")) return false;
+      return true;
+    }
+
+    function splitFrontMatter(markdown) {
+      const match = String(markdown || "").match(/^---\s*\n([\s\S]*?)\n---\s*\n?/);
+      if (!match) return { meta: {}, body: markdown || "" };
+
+      const meta = {};
+      match[1].split(/\r?\n/).forEach(line => {
+        const pair = line.match(/^([A-Za-z0-9_-]+):\s*(.*)$/);
+        if (!pair) return;
+        let value = pair[2].trim();
+        value = value.replace(/^["']|["']$/g, "");
+        meta[pair[1]] = value;
+      });
+
+      return { meta, body: String(markdown || "").slice(match[0].length) };
+    }
+
+    function normalizePath(path) {
+      const parts = [];
+      String(path || "").split("/").forEach(part => {
+        if (!part || part === ".") return;
+        if (part === "..") parts.pop();
+        else parts.push(part);
+      });
+      return parts.join("/");
+    }
+
+    function resolveAssetPath(currentSrc, href) {
+      if (href.startsWith("/")) return href.slice(1);
+      const base = currentSrc.split("/").slice(0, -1).join("/");
+      return normalizePath((base ? base + "/" : "") + href);
+    }
+
+    function cleanMarkdownPath(path) {
+      let cleaned = String(path || "").trim().replace(/\\/g, "/");
+
+      // 古いリンクや相対パスの影響で、src の中に
+      // diary/index.html?src=diary/xxxx.md のような値が入っても復旧する。
+      for (let i = 0; i < 4; i++) {
+        try {
+          cleaned = decodeURIComponent(cleaned);
+        } catch (e) {
+          // すでに普通の文字列ならそのまま使う
+        }
+
+        const srcMark = cleaned.lastIndexOf("?src=");
+        const srcMarkAmp = cleaned.lastIndexOf("&src=");
+        const mark = Math.max(srcMark, srcMarkAmp);
+        if (mark < 0) break;
+        cleaned = cleaned.slice(mark + 5);
+      }
+
+      cleaned = cleaned.split("#")[0];
+      cleaned = cleaned.replace(/^\.\//, "").replace(/^\/+/, "");
+      return normalizePath(cleaned);
+    }
+
+    function pageUrl(src) {
+      return "/" + viewerFile + "?src=" + encodeURIComponent(cleanMarkdownPath(src));
+    }
+
+    function resolvePostFilePath(file) {
+      const cleaned = cleanMarkdownPath(file);
+      if (!cleaned) return "";
+      if (!cleaned.includes("/") && cleaned.endsWith(".md")) {
+        return "diary/" + cleaned;
+      }
+      return cleaned;
+    }
+
+    function isDiaryEntryPath(path) {
+      return path.startsWith("diary/")
+        && path !== "diary/index.md"
+        && path.endsWith(".md");
+    }
+
+    function parseInline(text) {
+      let out = String(text ?? "");
+
+      const codeStore = [];
+      out = out.replace(/`([^`]+)`/g, (_, code) => {
+        const key = `@@CODE${codeStore.length}@@`;
+        codeStore.push(`<code>${escapeHtml(code)}</code>`);
+        return key;
+      });
+
+      out = out.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+        return `<img src="${escapeAttr(src.trim())}" alt="${escapeAttr(alt)}">`;
+      });
+
+      out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, label, href) => {
+        return `<a href="${escapeAttr(href.trim())}">${label}</a>`;
+      });
+
+      out = out.replace(/~~([^~]+)~~/g, "<del>$1</del>");
+      out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      out = out.replace(/__([^_]+)__/g, "<strong>$1</strong>");
+      out = out.replace(/(^|\s)\*([^*]+)\*/g, "$1<em>$2</em>");
+      out = out.replace(/(^|\s)_([^_]+)_/g, "$1<em>$2</em>");
+
+      codeStore.forEach((html, i) => {
+        out = out.replace(`@@CODE${i}@@`, html);
+      });
+
+      return out;
+    }
+
+    function isTableSeparator(line) {
+      return /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line);
+    }
+
+    function splitTableRow(line) {
+      let trimmed = line.trim();
+      if (trimmed.startsWith("|")) trimmed = trimmed.slice(1);
+      if (trimmed.endsWith("|")) trimmed = trimmed.slice(0, -1);
+      return trimmed.split("|").map(cell => cell.trim());
+    }
+
+    function renderTable(lines) {
+      const head = splitTableRow(lines[0]);
+      const body = lines.slice(2).map(splitTableRow);
+      return `<table><thead><tr>${head.map(cell => `<th>${parseInline(cell)}</th>`).join("")}</tr></thead><tbody>`
+        + body.map(row => `<tr>${row.map(cell => `<td>${parseInline(cell)}</td>`).join("")}</tr>`).join("")
+        + `</tbody></table>`;
+    }
+
+    function parseMarkdown(markdown) {
+      const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
+      const html = [];
+      let i = 0;
+      let paragraph = [];
+      let listType = "";
+      let quote = [];
+
+      function flushParagraph() {
+        if (!paragraph.length) return;
+        html.push(`<p>${parseInline(paragraph.join("<br>\n"))}</p>`);
+        paragraph = [];
+      }
+
+      function closeList() {
+        if (!listType) return;
+        html.push(`</${listType}>`);
+        listType = "";
+      }
+
+      function flushQuote() {
+        if (!quote.length) return;
+        html.push(`<blockquote>${quote.map(line => `<p>${parseInline(line)}</p>`).join("")}</blockquote>`);
+        quote = [];
+      }
+
+      while (i < lines.length) {
+        const line = lines[i];
+        const trimmed = line.trim();
+
+        if (trimmed.startsWith("```")) {
+          flushParagraph(); closeList(); flushQuote();
+          const code = [];
+          i++;
+          while (i < lines.length && !lines[i].trim().startsWith("```")) {
+            code.push(lines[i]);
+            i++;
+          }
+          html.push(`<pre><code>${escapeHtml(code.join("\n"))}</code></pre>`);
+          i++;
+          continue;
+        }
+
+        if (!trimmed) {
+          flushParagraph(); closeList(); flushQuote();
+          i++;
+          continue;
+        }
+
+        if (trimmed.startsWith("|") && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+          flushParagraph(); closeList(); flushQuote();
+          const tableLines = [lines[i], lines[i + 1]];
+          i += 2;
+          while (i < lines.length && lines[i].trim().startsWith("|")) {
+            tableLines.push(lines[i]);
+            i++;
+          }
+          html.push(renderTable(tableLines));
+          continue;
+        }
+
+        const heading = line.match(/^(#{1,6})\s+(.+)$/);
+        if (heading) {
+          flushParagraph(); closeList(); flushQuote();
+          const level = heading[1].length;
+          html.push(`<h${level}>${parseInline(heading[2].trim())}</h${level}>`);
+          i++;
+          continue;
+        }
+
+        if (/^---+$/.test(trimmed)) {
+          flushParagraph(); closeList(); flushQuote();
+          html.push("<hr>");
+          i++;
+          continue;
+        }
+
+        const list = line.match(/^\s*[-*+]\s+(.+)$/);
+        if (list) {
+          flushParagraph(); flushQuote();
+          if (listType !== "ul") {
+            closeList();
+            html.push("<ul>");
+            listType = "ul";
+          }
+          html.push(`<li>${parseInline(list[1])}</li>`);
+          i++;
+          continue;
+        }
+
+        const orderedList = line.match(/^\s*\d+\.\s+(.+)$/);
+        if (orderedList) {
+          flushParagraph(); flushQuote();
+          if (listType !== "ol") {
+            closeList();
+            html.push("<ol>");
+            listType = "ol";
+          }
+          html.push(`<li>${parseInline(orderedList[1])}</li>`);
+          i++;
+          continue;
+        }
+
+        const quoteLine = line.match(/^>\s?(.*)$/);
+        if (quoteLine) {
+          flushParagraph(); closeList();
+          quote.push(quoteLine[1]);
+          i++;
+          continue;
+        }
+
+        if (trimmed.startsWith("<") && trimmed.endsWith(">")) {
+          flushParagraph(); closeList(); flushQuote();
+          html.push(line);
+          i++;
+          continue;
+        }
+
+        paragraph.push(line);
+        i++;
+      }
+
+      flushParagraph(); closeList(); flushQuote();
+      return html.join("\n");
+    }
+
+    async function loadDiaryPosts() {
+      if (diaryPostsCache) return diaryPostsCache;
+
+      const res = await fetch("/diary/posts.json", { cache: "no-store" });
+      if (!res.ok) throw new Error("posts.json not found");
+      diaryPostsCache = await res.json();
+      return diaryPostsCache;
+    }
+
+    function findEmbeddedDiaryPost(posts, src) {
+      const target = cleanMarkdownPath(src);
+      return posts.find(post => resolvePostFilePath(post.file || post.src) === target);
+    }
+
+    function cardHtml(post) {
+      const file = resolvePostFilePath(post.file || post.src);
+      const title = post.title || "無題の日記";
+      const date = post.date || "";
+      const category = post.category || post.tag || "";
+      const description = post.description || post.excerpt || "";
+      let thumbnail = post.thumbnail || "";
+      if (thumbnail && isRelativeAssetPath(thumbnail)) {
+        thumbnail = cleanMarkdownPath(thumbnail);
+      }
+      const thumb = thumbnail
+        ? `<div class="diary-card-thumb"><img src="${escapeHtml(thumbnail)}" alt=""></div>`
+        : `<div class="diary-card-thumb diary-card-noimage">diary</div>`;
+
+      return `
+        <a class="diary-card" href="${pageUrl(file)}">
+          ${thumb}
+          <div class="diary-card-body">
+            <div class="diary-card-meta">
+              ${date ? `<span>${escapeHtml(date)}</span>` : ""}
+              ${category ? `<span>${escapeHtml(category)}</span>` : ""}
+            </div>
+            <h2 class="diary-card-title">${escapeHtml(title)}</h2>
+            ${description ? `<p class="diary-card-excerpt">${escapeHtml(description)}</p>` : ""}
+          </div>
+        </a>`;
+    }
+
+    async function renderDiaryIndex(md) {
+      let intro = splitFrontMatter(md).body;
+      intro = intro.replace(/<div class="diary-list">[\s\S]*?<\/div>\s*/g, "");
+      intro = intro.replace(/##\s*最新の日記[\s\S]*?(?=\n---|$)/g, "");
+      intro = intro.replace(/\[トップへ戻る\]\([^)]*\)\s*/g, "");
+
+      try {
+        const posts = await loadDiaryPosts();
+        posts.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+
+        const cards = posts.map(cardHtml).join("\n");
+        return parseMarkdown(intro)
+          + `<section class="diary-index-section">
+              <div class="diary-index-head">
+                <h2>記事一覧</h2>
+                <span>${posts.length} entries</span>
+              </div>
+              <div class="diary-card-grid">${cards}</div>
+            </section>`;
+      } catch (e) {
+        return parseMarkdown(intro)
+          + `<p class="notice">日記一覧を読み込めませんでした。</p>`;
+      }
+    }
+
+    async function renderMarkdown(src, markdown) {
+      const parsed = splitFrontMatter(markdown);
+      let md = parsed.body;
+
+      if (src === "diary/index.md") {
+        return await renderDiaryIndex(markdown);
+      }
+
+      if (isDiaryEntryPath(src)) {
+        const date = parsed.meta.date || "";
+        const category = parsed.meta.category || parsed.meta.tag || "";
+        const title = parsed.meta.title || "";
+
+        md = md.replace(/^\s*#\s*([0-9]{4}(?:[-/.][0-9]{1,2}){2})\s*\n?/, "");
+        if (title) {
+          md = md.replace(/^\s*#\s+.*\n?/, "");
+        }
+        md = md.replace(/<span class="meta">[\s\S]*?<\/span>\s*/i, "");
+
+        const head = `
+          <article class="diary-article">
+            ${title ? `<h1>${escapeHtml(title)}</h1>` : ""}
+            ${(date || category) ? `<div class="diary-date-subtle">${escapeHtml([date, category].filter(Boolean).join(" / "))}</div>` : ""}
+          </article>`;
+
+        return head + parseMarkdown(md);
+      }
+
+      return parseMarkdown(md);
+    }
+
+    function rewriteMarkdownLinks(currentSrc) {
+      document.querySelectorAll("#content a").forEach(a => {
+        const href = a.getAttribute("href");
+        if (!href) return;
+        if (href.startsWith("#") || href.startsWith("mailto:") || /^[a-z][a-z0-9+.-]*:/i.test(href)) return;
+
+        // すでに index.html?src=... / view.html?src=... の形になっているリンクは、
+        // Markdown本文へのリンクではなく「表示用ページへのリンク」なので二重変換しない。
+        if (href.includes("?")) return;
+
+        const hashIndex = href.indexOf("#");
+        const pathPart = hashIndex >= 0 ? href.slice(0, hashIndex) : href;
+        const hashPart = hashIndex >= 0 ? href.slice(hashIndex) : "";
+
+        if (pathPart.endsWith(".md")) {
+          const resolved = resolveAssetPath(currentSrc, pathPart);
+          if (isSafeMarkdownPath(resolved)) {
+            a.setAttribute("href", pageUrl(resolved) + hashPart);
+          }
+        }
+      });
+    }
+
+    function rewriteRelativeImages(currentSrc) {
+      document.querySelectorAll("#content img").forEach(img => {
+        const src = img.getAttribute("src");
+        if (!isRelativeAssetPath(src)) return;
+        img.setAttribute("src", resolveAssetPath(currentSrc, src));
+        img.addEventListener("error", () => {
+          img.classList.add("image-missing");
+          img.setAttribute("alt", "");
+        }, { once: true });
+      });
+    }
+
+    function rawMarkdownUrl(src) {
+      return "/" + encodeURI(src) + "?raw=1";
+    }
+
+    async function fetchMarkdownFile(src) {
+      const candidates = Array.from(new Set([rawMarkdownUrl(src), "/" + src, "/" + encodeURI(src)]));
+      for (const url of candidates) {
+        const res = await fetch(url, { cache: "no-store" });
+        if (res.ok) return await res.text();
+      }
+      throw new Error("not found");
+    }
+
+    async function loadPageMarkdown(src) {
+      const key = cleanMarkdownPath(src);
+      return await fetchMarkdownFile(key);
+    }
+
+    async function main() {
+      const params = new URLSearchParams(location.search);
+      const src = cleanMarkdownPath(params.get("src") || "index.md");
+      const content = document.getElementById("content");
+
+      if (!isSafeMarkdownPath(src)) {
+        content.textContent = "読み込めないパスです。";
+        return;
+      }
+
+      try {
+        const md = await loadPageMarkdown(src);
+        content.innerHTML = await renderMarkdown(src, md);
+        document.getElementById("raw-link").href = rawMarkdownUrl(src);
+        rewriteMarkdownLinks(src);
+        rewriteRelativeImages(src);
+      } catch (e) {
+        content.textContent = "Markdownを読み込めませんでした。.md ファイルがアップロードされているか確認してください: " + src;
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>

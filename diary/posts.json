@@ -1,0 +1,17 @@
+[
+  {
+    "file": "diary/2026-06-04.md",
+    "title": "Markdownサイトを作りはじめた",
+    "date": "2026-06-04",
+    "category": "Web制作",
+    "description": "Markdownでサイトを作ることにした日の記録。"
+  },
+  {
+    "file": "diary/2026-06-03.md",
+    "title": "win11でxpごっこ",
+    "date": "2026-06-03",
+    "category": "配布",
+    "description": "win11でxpごっこをしたときのメモ。",
+    "thumbnail": "diary/images/electron.png"
+  }
+]
