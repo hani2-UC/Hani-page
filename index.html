@@ -493,7 +493,26 @@
         content.textContent = "Markdownを読み込めませんでした。.md ファイルがアップロードされているか確認してください: " + src;
       }
     }
+const backToTopButton = document.getElementById("back-to-top");
 
+function updateBackToTopButton() {
+  if (!backToTopButton) return;
+
+  backToTopButton.classList.toggle("is-visible", window.scrollY > 320);
+}
+
+if (backToTopButton) {
+  window.addEventListener("scroll", updateBackToTopButton, { passive: true });
+
+  backToTopButton.addEventListener("click", () => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth"
+    });
+  });
+
+  updateBackToTopButton();
+}
     main();
   </script>
 </body>
