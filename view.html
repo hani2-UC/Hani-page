@@ -27,7 +27,15 @@
   <footer class="site-footer">
     <a id="raw-link" href="#">Markdownで見る</a>
   </footer>
-
+  <button
+    type="button"
+    id="back-to-top"
+    class="back-to-top"
+    aria-label="ページの一番上に戻る"
+    title="上に戻る"
+>
+  <img src="images/back-to-top.png" alt="">
+  </button>
   <script>
     const viewerFile = location.pathname.endsWith("view.html") ? "view.html" : "index.html";
     let diaryPostsCache = null;
