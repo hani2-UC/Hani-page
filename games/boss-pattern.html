@@ -215,6 +215,7 @@
     paused:false,
     difficulty:'easy',
     aiPilot:new URLSearchParams(location.search).get('autoplay')==='1',
+    tapControls:new URLSearchParams(location.search).get('tap')==='1',
     aiDirection:{x:0,y:0},
     aiNextDecision:0,
     phaseIndex:0,
@@ -647,6 +648,28 @@
     state.input.arrowdown=dir.y>0.2;
   }
 
+  function firePlayerVolley(){
+    const p=state.player;
+    if(p.fireCooldown>0||state.enemy.defeated)return false;
+    state.playerShots.push(new PlayerShot(p.x-7.5,p.y-11));
+    state.playerShots.push(new PlayerShot(p.x+7.5,p.y-11));
+    p.fireCooldown=p.fireInterval;
+    return true;
+  }
+
+  function handleTapControl(k){
+    if(!state.tapControls||state.aiPilot)return;
+    const p=state.player;
+    const step=state.input.shift?14:28;
+    if(k==='z'){ firePlayerVolley(); return; }
+    if(k==='arrowleft'||k==='a')p.x-=step;
+    else if(k==='arrowright'||k==='d')p.x+=step;
+    else if(k==='arrowup'||k==='w')p.y-=step;
+    else if(k==='arrowdown'||k==='s')p.y+=step;
+    p.x=clamp(p.x,18,stage.w-18);
+    p.y=clamp(p.y,18,stage.h-18);
+  }
+
   function updatePlayer(dt){
     updateAiPilot();
     const p=state.player;
@@ -660,11 +683,7 @@
     if(mx||my){ mx/=l; my/=l; const sp=(p.slow?2.0:4.15)*dt; p.x+=mx*sp; p.y+=my*sp; }
     p.x=clamp(p.x,18,stage.w-18); p.y=clamp(p.y,18,stage.h-18);
     p.fireCooldown-=dt;
-    if(state.input.z&&p.fireCooldown<=0&&!state.enemy.defeated){
-      state.playerShots.push(new PlayerShot(p.x-7.5,p.y-11));
-      state.playerShots.push(new PlayerShot(p.x+7.5,p.y-11));
-      p.fireCooldown=p.fireInterval;
-    }
+    if(state.input.z)firePlayerVolley();
   }
 
   function normalOne(t){
@@ -1170,13 +1189,14 @@
     const d=phaseDefs[state.phaseIndex];
     phaseText.textContent=`[${difficulty().label}] ${state.phaseIndex+1}. ${d.type}　${d.name}`;
     const dir=(state.phaseIndex===1||state.phaseIndex===6)?` / 回転: ${state.pattern.dir<0?'反時計':'時計'}`:'';
-    statusText.textContent=`HP ${Math.ceil(state.enemy.hp)} / 弾 ${state.bullets.length} / 被弾 ${state.player.hitCount}${dir}${state.aiPilot?' / AI操縦':''}${state.paused?' / 停止中':''}`;
+    statusText.textContent=`HP ${Math.ceil(state.enemy.hp)} / 弾 ${state.bullets.length} / 被弾 ${state.player.hitCount}${dir}${state.aiPilot?' / AI操縦':''}${state.tapControls&&!state.aiPilot?' / タップ操作':''}${state.paused?' / 停止中':''}`;
   }
 
   addEventListener('keydown',e=>{
     const k=e.key.toLowerCase();state.input[k]=true;
     if(['arrowleft','arrowright','arrowup','arrowdown',' ','x'].includes(k))e.preventDefault();
     if(e.repeat)return;
+    handleTapControl(k);
     if(k===' ')state.paused=!state.paused;
     else if(k==='r')initPhase(state.phaseIndex,true);
     else if(k==='n')nextPhase();
