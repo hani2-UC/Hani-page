@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>三重螺旋ボス戦・Easy / Normal / Hard</title>
+<style>
+  :root {
+    --panel: rgba(7, 11, 24, 0.86);
+    --border: rgba(255,255,255,0.14);
+    --text: rgba(255,255,255,0.95);
+  }
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #080d19;
+    color: var(--text);
+    font-family: "Segoe UI", "Yu Gothic UI", sans-serif;
+  }
+  canvas { display:block; width:100vw; height:100vh; }
+  .panel {
+    position: fixed;
+    left: 14px;
+    top: 14px;
+    width: min(390px, calc(100vw - 28px));
+    padding: 11px 13px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--panel);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 8px 28px rgba(0,0,0,0.28);
+    font-size: 12px;
+    line-height: 1.55;
+    user-select: none;
+    pointer-events: none;
+  }
+  .panel b { color:#fff; font-size:13px; }
+  .phase-list { opacity:0.8; margin-top:5px; }
+  .difficulty {
+    display:flex;
+    gap:6px;
+    margin:8px 0 4px;
+    pointer-events:auto;
+  }
+  .difficulty button {
+    flex:1;
+    appearance:none;
+    border:1px solid rgba(255,255,255,0.18);
+    border-radius:7px;
+    padding:5px 7px;
+    color:rgba(255,255,255,0.72);
+    background:rgba(255,255,255,0.05);
+    font:700 11px/1 "Segoe UI", sans-serif;
+    letter-spacing:.08em;
+    cursor:pointer;
+  }
+  .difficulty button:hover { background:rgba(255,255,255,0.11); }
+  .difficulty button.active {
+    color:#07111d;
+    border-color:#73f0ff;
+    background:linear-gradient(135deg,#73f0ff,#f0a7ff);
+    box-shadow:0 0 14px rgba(115,240,255,0.28);
+  }
+  .corner {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--panel);
+    font-size: 11px;
+    opacity: 0.88;
+    user-select: none;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="panel">
+  <b id="phaseText">読み込み中</b>
+  <div id="statusText"></div>
+  <div class="difficulty" aria-label="難易度">
+    <button type="button" data-difficulty="easy">EASY</button>
+    <button type="button" data-difficulty="normal">NORMAL</button>
+    <button type="button" data-difficulty="hard">HARD</button>
+  </div>
+  <div class="phase-list">1～6: 本編 / 7～9: 追加案　N: 次　P: 前　R: 再開　E/M/H: 難易度</div>
+</div>
+<div class="corner">移動: WASD / 矢印　低速: Shift　射撃: Z　霊撃: X　停止: Space</div>
+<script>
+(() => {
+  'use strict';
+
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const phaseText = document.getElementById('phaseText');
+  const statusText = document.getElementById('statusText');
+  const difficultyButtons = [...document.querySelectorAll('[data-difficulty]')];
+
+  let vw = 0, vh = 0, dpr = 1;
+  const stage = { x:0, y:0, w:640, h:960, scale:1, drawW:0, drawH:0, cx:320, cy:390 };
+
+  const fixedPalette = ['#73f0ff', '#8c9eff', '#f0a7ff', '#ff6fae'];
+
+  const difficultyDefs = {
+    easy: {
+      label:'EASY', hp:1, speed:1,
+      one:{aim:24,lanes:3,layers:3,laneStep:0.23,ring:92,ringCount:42,gap:0.19},
+      two:{turn:132,spiral:4,fan:66,fanCount:7,ring:132,ringCount:18},
+      three:{rain:8,aim:78,fanCount:5},
+      corridor:{wave:70,count:54,rings:2,gap:0.16,stream:12},
+      delayed:{cycle:250,draw:122,spawn:2,seq:90,release:205,aim:0.34,ring:110,ringCount:18},
+      final:{turns:5,spawn:2.05,pause:10,wait:70,waitStep:0.24,orbit:0.112},
+      reverse:{cycle:180,draw:138,spawn:3,ringCount:24,fan:96,fanCount:5},
+      mirror:{aim:11,fanCount:3,wall:88,wallCount:16},
+      triangle:{edge:9,aim:72,fanCount:3}
+    },
+    normal: {
+      label:'NORMAL', hp:1.18, speed:1.09,
+      one:{aim:20,lanes:5,layers:3,laneStep:0.16,ring:82,ringCount:54,gap:0.155},
+      two:{turn:118,spiral:3,fan:54,fanCount:9,ring:118,ringCount:24},
+      three:{rain:6,aim:64,fanCount:7},
+      corridor:{wave:60,count:64,rings:2,gap:0.145,stream:10},
+      delayed:{cycle:232,draw:128,spawn:2,seq:104,release:190,aim:0.42,ring:94,ringCount:24},
+      final:{turns:5.5,spawn:2.35,pause:8,wait:64,waitStep:0.22,orbit:0.119},
+      reverse:{cycle:166,draw:132,spawn:2,ringCount:30,fan:82,fanCount:7},
+      mirror:{aim:9,fanCount:5,wall:76,wallCount:20},
+      triangle:{edge:7,aim:60,fanCount:5}
+    },
+    hard: {
+      label:'HARD', hp:1.38, speed:1.18,
+      one:{aim:16,lanes:5,layers:4,laneStep:0.14,ring:70,ringCount:66,gap:0.13},
+      two:{turn:104,spiral:2,fan:44,fanCount:11,ring:104,ringCount:30},
+      three:{rain:5,aim:52,fanCount:9},
+      corridor:{wave:52,count:72,rings:3,gap:0.125,stream:8},
+      delayed:{cycle:216,draw:142,spawn:1,seq:124,release:178,aim:0.50,ring:78,ringCount:30},
+      final:{turns:6,spawn:2.7,pause:6,wait:58,waitStep:0.20,orbit:0.126},
+      reverse:{cycle:152,draw:126,spawn:1,ringCount:36,fan:68,fanCount:9},
+      mirror:{aim:7,fanCount:5,wall:64,wallCount:24},
+      triangle:{edge:5,aim:48,fanCount:7}
+    }
+  };
+
+  const phaseDefs = [
+    {
+      type:'通常攻撃 1',
+      name:'三点測位',
+      subtitle:'三方向の狙い弾と、回転する三つの安全方向',
+      hp:2600,
+      bg:'#101828'
+    },
+    {
+      type:'通常攻撃 2',
+      name:'反転残光',
+      subtitle:'一定間隔で回転方向が反転する二重流',
+      hp:2900,
+      bg:'#111728'
+    },
+    {
+      type:'通常攻撃 3',
+      name:'周回端子',
+      subtitle:'三つの周回発射点から降る曲線弾',
+      hp:3200,
+      bg:'#101a29'
+    },
+    {
+      type:'スペルカード 1',
+      name:'環符「三相回廊」',
+      subtitle:'三つの移動する穴を追う輪状弾幕',
+      hp:4300,
+      bg:'#15152a'
+    },
+    {
+      type:'スペルカード 2',
+      name:'虚符「遅延螺旋」',
+      subtitle:'停止して描かれた螺旋が、予告後に三方向へ一斉解放される',
+      hp:5200,
+      bg:'#161326'
+    },
+    {
+      type:'最終スペルカード',
+      name:'終符「三重螺旋・輪廻反転」',
+      subtitle:'高密度の螺旋が中心へ収束し、周回後に放たれる',
+      hp:6800,
+      bg:'#101828'
+    },
+    {
+      type:'追加案 A',
+      name:'逆符「回天返し」',
+      subtitle:'低密度の三重螺旋が波ごとに反転する旧第2スペル案',
+      hp:5000,
+      bg:'#12162b'
+    },
+    {
+      type:'追加案 B',
+      name:'鏡符「左右反照」',
+      subtitle:'左右対称に見えて、速度差で少しずつ崩れる',
+      hp:4200,
+      bg:'#171529'
+    },
+    {
+      type:'追加案 C',
+      name:'星符「三角星路」',
+      subtitle:'回転する三角形の頂点と辺から弾を放つ',
+      hp:4400,
+      bg:'#111a2a'
+    }
+  ];
+
+  const state = {
+    paused:false,
+    difficulty:'easy',
+    phaseIndex:0,
+    phaseAge:0,
+    phaseIntro:0,
+    phaseClear:0,
+    campaignClear:false,
+    bullets:[],
+    playerShots:[],
+    effects:[],
+    emitters:[],
+    input:Object.create(null),
+    frame:0,
+    time:0,
+    pattern:{},
+    player:{
+      x:stage.cx,
+      y:stage.h-120,
+      radius:4.6,
+      hitCount:0,
+      hitFlash:0,
+      invuln:0,
+      fireCooldown:0,
+      fireInterval:4.2,
+      bombCooldown:0,
+      slow:false
+    },
+    enemy:{
+      x:stage.cx,
+      y:stage.cy,
+      radius:25,
+      hp:1,
+      maxHp:1,
+      hitFlash:0,
+      defeated:false
+    },
+    bomb:{ active:false, age:0, duration:52, radius:0, maxRadius:300, x:0, y:0 }
+  };
+
+  function resize() {
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.floor(innerWidth * dpr);
+    canvas.height = Math.floor(innerHeight * dpr);
+    canvas.style.width = innerWidth + 'px';
+    canvas.style.height = innerHeight + 'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    vw = innerWidth;
+    vh = innerHeight;
+    const target = stage.w / stage.h;
+    let drawW = vh * target;
+    let drawH = vh;
+    if (drawW > vw * 0.94) {
+      drawW = vw * 0.94;
+      drawH = drawW / target;
+    }
+    stage.scale = drawW / stage.w;
+    stage.drawW = drawW;
+    stage.drawH = drawH;
+    stage.x = (vw - drawW) / 2;
+    stage.y = (vh - drawH) / 2;
+  }
+  addEventListener('resize', resize);
+  resize();
+
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function lerp(a,b,t){ return a+(b-a)*t; }
+  function rand(a,b){ return a+Math.random()*(b-a); }
+  function mod(v,m){ return ((v % m) + m) % m; }
+  function angleDiff(a,b){ return Math.atan2(Math.sin(a-b), Math.cos(a-b)); }
+  function hexToRgba(hex,a){
+    const c=hex.replace('#','');
+    const n=parseInt(c,16);
+    return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`;
+  }
+  function palette(){ return fixedPalette; }
+  function difficulty(){ return difficultyDefs[state.difficulty]; }
+  function aimAngle(x,y){ return Math.atan2(state.player.y-y, state.player.x-x); }
+
+  class Bullet {
+    constructor(x,y,vx,vy,opt={}){
+      this.x=x; this.y=y; this.vx=vx; this.vy=vy;
+      this.ax=opt.ax||0; this.ay=opt.ay||0;
+      this.radius=opt.radius||4.2;
+      this.color=opt.color||palette()[0];
+      this.core=opt.core||'#ffffff';
+      this.age=0;
+      this.life=opt.life||520;
+      this.alpha=opt.alpha===undefined?1:opt.alpha;
+      this.fadeIn=opt.fadeIn||5;
+      this.fadeOut=opt.fadeOut||28;
+      this.curve=opt.curve||0;
+      this.drag=opt.drag===undefined?1:opt.drag;
+      this.kind=opt.kind||'orb';
+      this.dead=false;
+      this.data=opt.data||{};
+      this.updateFn=opt.updateFn||null;
+      this.drawFn=opt.drawFn||null;
+      this.hit=opt.hit===undefined?true:opt.hit;
+      this.layer=opt.layer||0;
+    }
+    update(dt){
+      this.age += dt;
+      if (this.updateFn) {
+        this.updateFn(this,dt);
+      } else {
+        if (this.curve) {
+          const a=this.curve*dt, c=Math.cos(a), s=Math.sin(a);
+          const nx=this.vx*c-this.vy*s;
+          const ny=this.vx*s+this.vy*c;
+          this.vx=nx; this.vy=ny;
+        }
+        this.vx += this.ax*dt;
+        this.vy += this.ay*dt;
+        this.vx *= Math.pow(this.drag,dt);
+        this.vy *= Math.pow(this.drag,dt);
+        this.x += this.vx*dt;
+        this.y += this.vy*dt;
+      }
+      if (this.age >= this.life || this.x < -190 || this.x > stage.w+190 || this.y < -210 || this.y > stage.h+210) this.dead=true;
+    }
+    draw(ctx){
+      if (this.drawFn) { this.drawFn(this,ctx); return; }
+      const appear=clamp(this.age/this.fadeIn,0,1);
+      const fade=this.age>this.life-this.fadeOut?clamp((this.life-this.age)/this.fadeOut,0,1):1;
+      const a=this.alpha*appear*fade;
+      const r=this.radius;
+      ctx.save();
+      if (this.kind==='rice') {
+        const ang=Math.atan2(this.vy,this.vx)+Math.PI/2;
+        ctx.translate(this.x,this.y); ctx.rotate(ang);
+        ctx.shadowBlur=r*2.8; ctx.shadowColor=this.color;
+        ctx.fillStyle=hexToRgba(this.color,0.96*a);
+        ctx.beginPath();
+        ctx.ellipse(0,0,r*0.62,r*1.6,0,0,Math.PI*2);
+        ctx.fill();
+      } else {
+        const glowR=r*3.8;
+        const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,glowR);
+        g.addColorStop(0,hexToRgba(this.color,0.78*a));
+        g.addColorStop(0.38,hexToRgba(this.color,0.20*a));
+        g.addColorStop(1,hexToRgba(this.color,0));
+        ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,glowR,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle=hexToRgba(this.color,0.98*a); ctx.beginPath(); ctx.arc(this.x,this.y,r,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
+  class PlayerShot {
+    constructor(x,y){ this.x=x; this.y=y; this.vy=-15; this.radius=3; this.damage=8; this.dead=false; }
+    update(dt){ this.y+=this.vy*dt; if(this.y<-35)this.dead=true; }
+    draw(ctx){
+      ctx.save(); ctx.translate(this.x,this.y);
+      ctx.shadowBlur=10; ctx.shadowColor='#73f0ff';
+      ctx.fillStyle='#eaffff';
+      ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(3,5); ctx.lineTo(0,9); ctx.lineTo(-3,5); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  class FinalOrb {
+    constructor(arm,seq,cycleIndex){
+      const d=difficulty();
+      this.arm=arm; this.seq=seq; this.age=0; this.mode='waiting'; this.dead=false;
+      this.waitFrames=d.final.wait+seq*d.final.waitStep;
+      this.life=this.waitFrames+760;
+      this.turnDir=cycleIndex%2===1?1:-1;
+      const theta0=Math.PI*2*arm/3;
+      const p=seq/3;
+      this.theta=theta0+p*0.76*this.turnDir;
+      this.radiusFromCenter=8+p*2.2;
+      this.waitX=stage.cx+Math.cos(this.theta)*this.radiusFromCenter;
+      this.waitY=stage.cy+Math.sin(this.theta)*this.radiusFromCenter;
+      this.x=this.waitX; this.y=this.waitY;
+      this.radius=(3.9+Math.max(0,1-p/80)*4.2);
+      this.color=palette()[arm%3];
+      this.alpha=0;
+      this.targetX=0; this.targetY=0;
+      this.dirX=0; this.dirY=0; this.speed=0; this.accel=0.04*d.speed; this.maxSpeed=4.35*d.speed;
+      this.orbiting=false; this.hasOrbited=false; this.orbitTime=0; this.orbitDuration=0; this.orbitAngle=0;
+      this.orbitAngular=d.final.orbit;
+      this.orbitRadius=10.5; this.orbitSign=1;
+      this.wobble=rand(0,Math.PI*2);
+      this.hit=true;
+    }
+    release(){
+      this.mode='moving';
+      const tx=-Math.sin(this.theta)*this.turnDir;
+      const ty=Math.cos(this.theta)*this.turnDir;
+      this.targetX=stage.cx+tx*18;
+      this.targetY=stage.cy+ty*18;
+      let dx=this.targetX-this.x, dy=this.targetY-this.y;
+      const l=Math.hypot(dx,dy)||1;
+      this.dirX=dx/l; this.dirY=dy/l;
+      this.speed=0.34;
+    }
+    update(dt){
+      this.age+=dt;
+      if(this.mode==='waiting'){
+        this.x=this.waitX+Math.cos(this.age*0.08+this.wobble)*0.12;
+        this.y=this.waitY+Math.sin(this.age*0.08+this.wobble)*0.12;
+        if(this.age>=this.waitFrames)this.release();
+      }else{
+        this.speed=Math.min(this.maxSpeed,this.speed+this.accel*dt);
+        if(this.orbiting){
+          this.orbitTime+=dt;
+          this.orbitAngle+=this.orbitAngular*this.orbitSign*dt;
+          this.x=this.targetX+Math.cos(this.orbitAngle)*this.orbitRadius;
+          this.y=this.targetY+Math.sin(this.orbitAngle)*this.orbitRadius;
+          if(this.orbitTime>=this.orbitDuration){
+            this.orbiting=false; this.hasOrbited=true;
+            const rx=Math.cos(this.orbitAngle), ry=Math.sin(this.orbitAngle);
+            const tx=-ry*this.orbitSign, ty=rx*this.orbitSign;
+            let dx=tx*0.95+rx*1.35, dy=ty*0.95+ry*1.35;
+            const l=Math.hypot(dx,dy)||1;
+            this.dirX=dx/l; this.dirY=dy/l;
+            this.x+=this.dirX*this.speed*2.4; this.y+=this.dirY*this.speed*2.4;
+          }
+        } else if(!this.hasOrbited){
+          const dx=this.targetX-this.x, dy=this.targetY-this.y;
+          const dist=Math.hypot(dx,dy)||1;
+          const nx=dx/dist, ny=dy/dist;
+          this.dirX=this.dirX*0.93+nx*0.07;
+          this.dirY=this.dirY*0.93+ny*0.07;
+          const dl=Math.hypot(this.dirX,this.dirY)||1;
+          this.dirX/=dl; this.dirY/=dl;
+          if(dist<=this.orbitRadius+1.5){
+            this.orbiting=true; this.orbitTime=0;
+            this.orbitDuration=Math.ceil(Math.PI*2/this.orbitAngular);
+            this.orbitAngle=Math.atan2(this.y-this.targetY,this.x-this.targetX);
+          }else{
+            this.x+=this.dirX*this.speed*dt; this.y+=this.dirY*this.speed*dt;
+          }
+        } else {
+          this.x+=this.dirX*this.speed*dt; this.y+=this.dirY*this.speed*dt;
+        }
+      }
+      this.alpha=clamp(this.age/10,0,1)*(this.age>this.life-44?clamp((this.life-this.age)/44,0,1):1);
+      if(this.age>=this.life||this.x<-170||this.x>stage.w+170||this.y<-190||this.y>stage.h+190)this.dead=true;
+    }
+    draw(ctx){
+      const r=this.radius*(1+Math.sin(this.age*0.1+this.wobble)*0.03);
+      const glowR=r*(this.mode==='waiting'?4.5:3.9);
+      const g=ctx.createRadialGradient(this.x,this.y,0,this.x,this.y,glowR);
+      g.addColorStop(0,hexToRgba(this.color,0.92*this.alpha));
+      g.addColorStop(0.35,hexToRgba(this.color,0.28*this.alpha));
+      g.addColorStop(1,hexToRgba(this.color,0));
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(this.x,this.y,glowR,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=hexToRgba(this.color,0.97*this.alpha); ctx.beginPath(); ctx.arc(this.x,this.y,r,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  function addBullet(x,y,angle,speed,opt={}){
+    const adjustedSpeed=speed*difficulty().speed;
+    const b=new Bullet(x,y,Math.cos(angle)*adjustedSpeed,Math.sin(angle)*adjustedSpeed,opt);
+    state.bullets.push(b); return b;
+  }
+  function addRing(x,y,count,speed,offset,opt={}){
+    for(let i=0;i<count;i++) addBullet(x,y,offset+Math.PI*2*i/count,speed,{...opt,color:opt.color||palette()[i%3]});
+  }
+  function addFan(x,y,center,count,spread,speed,opt={}){
+    for(let i=0;i<count;i++){
+      const t=count===1?0.5:i/(count-1);
+      addBullet(x,y,center+lerp(-spread/2,spread/2,t),speed,{...opt,color:opt.color||palette()[i%3]});
+    }
+  }
+  function burstEffect(x,y,color='#ffffff',size=80){
+    state.effects.push({x,y,color,size,age:0,life:24});
+  }
+
+  function initPhase(index, keepHits=true){
+    state.phaseIndex=clamp(index,0,phaseDefs.length-1);
+    state.phaseAge=0;
+    state.phaseIntro=120;
+    state.phaseClear=0;
+    state.campaignClear=false;
+    state.bullets=[];
+    state.playerShots=[];
+    state.effects=[];
+    state.emitters=[];
+    state.pattern={};
+    const def=phaseDefs[state.phaseIndex];
+    state.enemy.x=stage.cx;
+    state.enemy.y=stage.cy;
+    state.enemy.maxHp=Math.round(def.hp*difficulty().hp);
+    state.enemy.hp=state.enemy.maxHp;
+    state.enemy.defeated=false;
+    state.enemy.hitFlash=0;
+    state.player.x=stage.cx;
+    state.player.y=stage.h-120;
+    state.player.hitFlash=0;
+    state.player.invuln=70;
+    state.player.fireCooldown=0;
+    state.player.bombCooldown=0;
+    if(!keepHits) state.player.hitCount=0;
+
+    if(state.phaseIndex===1) state.pattern.dir=1;
+    if(state.phaseIndex===2) state.pattern.orbit=0;
+    if(state.phaseIndex===3) state.pattern.gateBase=-Math.PI/2;
+    if(state.phaseIndex===4){ state.pattern.seq=0; state.pattern.cycle=0; }
+    if(state.phaseIndex===5){
+      state.pattern.spawnAcc=0;
+      state.pattern.nextArm=0;
+      state.pattern.armCounts=[0,0,0];
+      state.pattern.cycleIndex=1;
+      state.pattern.pause=0;
+      state.pattern.maxSeqPerArm=Math.floor((Math.PI*2*difficulty().final.turns/0.28)*3);
+    }
+    if(state.phaseIndex===6){ state.pattern.dir=1; state.pattern.wave=0; }
+    if(state.phaseIndex===7) state.pattern.swap=0;
+    if(state.phaseIndex===8) state.pattern.triAngle=-Math.PI/2;
+    updateHud();
+  }
+
+  function nextPhase(){
+    if(state.phaseIndex<phaseDefs.length-1) initPhase(state.phaseIndex+1,true);
+    else initPhase(0,true);
+  }
+  function prevPhase(){
+    if(state.phaseIndex>0) initPhase(state.phaseIndex-1,true);
+    else initPhase(phaseDefs.length-1,true);
+  }
+
+  function syncDifficultyButtons(){
+    difficultyButtons.forEach(button=>{
+      const active=button.dataset.difficulty===state.difficulty;
+      button.classList.toggle('active',active);
+      button.setAttribute('aria-pressed',String(active));
+    });
+  }
+  function setDifficulty(id){
+    if(!difficultyDefs[id]||id===state.difficulty)return;
+    state.difficulty=id;
+    syncDifficultyButtons();
+    initPhase(state.phaseIndex,false);
+  }
+
+  function damageEnemy(amount){
+    if(state.enemy.defeated || state.phaseIntro>38) return;
+    state.enemy.hp=Math.max(0,state.enemy.hp-amount);
+    state.enemy.hitFlash=4;
+    if(state.enemy.hp<=0){
+      state.enemy.defeated=true;
+      state.phaseClear=100;
+      state.bullets=[];
+      burstEffect(state.enemy.x,state.enemy.y,palette()[2],210);
+    }
+  }
+
+  function activateBomb(){
+    const p=state.player, b=state.bomb;
+    if(b.active||p.bombCooldown>0)return;
+    b.active=true; b.age=0; b.radius=0; b.x=p.x; b.y=p.y;
+    p.invuln=b.duration+22; p.bombCooldown=85;
+    damageEnemy(140);
+  }
+
+  function updateBomb(dt){
+    const p=state.player,b=state.bomb;
+    if(p.invuln>0)p.invuln-=dt;
+    if(p.bombCooldown>0)p.bombCooldown-=dt;
+    if(!b.active)return;
+    b.age+=dt;
+    const t=clamp(b.age/b.duration,0,1);
+    b.x=p.x; b.y=p.y;
+    b.radius=b.maxRadius*(1-Math.pow(1-t,2.1));
+    const clear=b.radius+18;
+    state.bullets=state.bullets.filter(q=>Math.hypot(q.x-b.x,q.y-b.y)>clear);
+    if(b.age>=b.duration)b.active=false;
+  }
+
+  function updatePlayer(dt){
+    const p=state.player;
+    const left=state.input.arrowleft||state.input.a;
+    const right=state.input.arrowright||state.input.d;
+    const up=state.input.arrowup||state.input.w;
+    const down=state.input.arrowdown||state.input.s;
+    p.slow=!!state.input.shift;
+    let mx=(right?1:0)-(left?1:0), my=(down?1:0)-(up?1:0);
+    const l=Math.hypot(mx,my)||1;
+    if(mx||my){ mx/=l; my/=l; const sp=(p.slow?2.0:4.15)*dt; p.x+=mx*sp; p.y+=my*sp; }
+    p.x=clamp(p.x,18,stage.w-18); p.y=clamp(p.y,18,stage.h-18);
+    p.fireCooldown-=dt;
+    if(state.input.z&&p.fireCooldown<=0&&!state.enemy.defeated){
+      state.playerShots.push(new PlayerShot(p.x-7.5,p.y-11));
+      state.playerShots.push(new PlayerShot(p.x+7.5,p.y-11));
+      p.fireCooldown=p.fireInterval;
+    }
+  }
+
+  function normalOne(t){
+    const e=state.enemy;
+    const cfg=difficulty().one;
+    e.x=stage.cx+Math.sin(t*0.012)*78;
+    e.y=stage.cy+Math.sin(t*0.021)*10;
+
+    if(Math.floor(t)%cfg.aim===0){
+      const aim=aimAngle(e.x,e.y);
+      const half=(cfg.lanes-1)/2;
+      for(let lane=-half;lane<=half;lane++){
+        const a=aim+lane*cfg.laneStep;
+        for(let k=0;k<cfg.layers;k++) addBullet(e.x,e.y,a,1.85+k*0.34,{radius:4.2,color:palette()[mod(lane+half,3)],kind:'rice',life:460});
+      }
+    }
+    if(Math.floor(t)%cfg.ring===0){
+      const base=t*0.018;
+      const gaps=[base,base+Math.PI*2/3,base+Math.PI*4/3];
+      const count=cfg.ringCount;
+      for(let i=0;i<count;i++){
+        const a=Math.PI*2*i/count+base*0.25;
+        const nearGap=gaps.some(g=>Math.abs(angleDiff(a,g))<cfg.gap);
+        if(nearGap)continue;
+        addBullet(e.x,e.y,a,1.62,{radius:3.8,color:palette()[i%3],life:560});
+      }
+      burstEffect(e.x,e.y,palette()[0],65);
+    }
+  }
+
+  function normalTwo(t){
+    const e=state.enemy;
+    const cfg=difficulty().two;
+    e.x=stage.cx+Math.sin(t*0.009)*125;
+    e.y=stage.cy+Math.cos(t*0.017)*13;
+    const block=Math.floor(t/cfg.turn);
+    const dir=block%2===0?1:-1;
+    state.pattern.dir=dir;
+
+    if(Math.floor(t)%cfg.spiral===0){
+      const a=t*0.055*dir;
+      addBullet(e.x,e.y,a,1.68,{radius:4.0,color:palette()[0],curve:0.0028*dir,life:590});
+      addBullet(e.x,e.y,a+Math.PI,1.68,{radius:4.0,color:palette()[1],curve:0.0028*dir,life:590});
+    }
+    if(Math.floor(t)%cfg.fan===0){
+      const aim=aimAngle(e.x,e.y);
+      addFan(e.x,e.y,aim,cfg.fanCount,0.72,2.45,{radius:3.6,color:palette()[2],kind:'rice',life:430});
+    }
+    if(Math.floor(t)%cfg.ring===0){
+      addRing(e.x,e.y,cfg.ringCount,1.15,t*0.01,{radius:3.4,color:palette()[3],life:600});
+      burstEffect(e.x,e.y,dir>0?palette()[0]:palette()[2],95);
+    }
+  }
+
+  function orbitPositions(t,r=88){
+    const arr=[];
+    for(let i=0;i<3;i++){
+      const a=t*0.018+Math.PI*2*i/3;
+      arr.push({x:state.enemy.x+Math.cos(a)*r,y:state.enemy.y+Math.sin(a)*r,a});
+    }
+    return arr;
+  }
+
+  function normalThree(t){
+    const e=state.enemy;
+    const cfg=difficulty().three;
+    e.x=stage.cx+Math.sin(t*0.006)*62;
+    e.y=stage.cy;
+    state.emitters=orbitPositions(t,92);
+
+    if(Math.floor(t)%cfg.rain===0){
+      state.emitters.forEach((o,i)=>{
+        const a=Math.PI/2+Math.sin(t*0.024+i*2.1)*0.48;
+        addBullet(o.x,o.y,a,1.55+i*0.08,{radius:4,color:palette()[i],curve:(i-1)*0.0016,kind:'rice',life:560});
+      });
+    }
+    if(Math.floor(t)%cfg.aim===0){
+      const idx=Math.floor(t/cfg.aim)%3;
+      const o=state.emitters[idx];
+      addFan(o.x,o.y,aimAngle(o.x,o.y),cfg.fanCount,0.52,2.65,{radius:3.6,color:palette()[3],kind:'rice',life:390});
+      burstEffect(o.x,o.y,palette()[idx],55);
+    }
+  }
+
+  function spellOne(t){
+    const e=state.enemy;
+    const cfg=difficulty().corridor;
+    e.x=stage.cx+Math.sin(t*0.005)*36;
+    e.y=stage.cy;
+    const base=t*0.0105;
+    state.pattern.gateBase=base;
+
+    if(Math.floor(t)%cfg.wave===0){
+      const wave=Math.floor(t/cfg.wave);
+      const count=cfg.count;
+      const gates=[base,base+Math.PI*2/3,base+Math.PI*4/3];
+      for(let ring=0;ring<cfg.rings;ring++){
+        for(let i=0;i<count;i++){
+          const a=Math.PI*2*i/count+wave*0.07+ring*0.035;
+          const open=gates.some(g=>Math.abs(angleDiff(a,g))<cfg.gap+ring*0.015);
+          if(open)continue;
+          addBullet(e.x,e.y,a,1.33+ring*0.28,{radius:ring?3.5:4.1,color:palette()[(i+ring)%3],life:650});
+        }
+      }
+      burstEffect(e.x,e.y,palette()[wave%3],105);
+    }
+    if(Math.floor(t)%cfg.stream===0){
+      const emit=orbitPositions(t*0.55,62);
+      state.emitters=emit;
+      emit.forEach((o,i)=>{
+        const a=o.a+Math.PI/2;
+        addBullet(o.x,o.y,a,1.3,{radius:3.2,color:palette()[i],curve:0.0035,life:520});
+      });
+    }
+  }
+
+  function spellTwo(t){
+    const e=state.enemy;
+    const cfg=difficulty().reverse;
+    e.x=stage.cx; e.y=stage.cy;
+    const cycle=cfg.cycle;
+    const local=mod(t,cycle);
+    const wave=Math.floor(t/cycle);
+    const dir=wave%2===0?1:-1;
+    state.pattern.dir=dir;
+    state.pattern.wave=wave;
+
+    if(local<cfg.draw && Math.floor(t)%cfg.spawn===0){
+      const base=wave*0.34+t*0.044*dir;
+      for(let arm=0;arm<3;arm++){
+        const a=base+Math.PI*2*arm/3;
+        const b=addBullet(e.x,e.y,a,1.46,{radius:4.15,color:palette()[arm],curve:0.0024*dir,life:620});
+        b.data.arm=arm;
+      }
+    }
+    if(Math.floor(local)===cfg.draw+4){
+      addRing(e.x,e.y,cfg.ringCount,1.12,t*0.013,{radius:3.5,color:palette()[3],life:620});
+      burstEffect(e.x,e.y,dir>0?palette()[0]:palette()[2],150);
+    }
+    if(Math.floor(t)%cfg.fan===0){
+      addFan(e.x,e.y,aimAngle(e.x,e.y),cfg.fanCount,0.46,2.25,{radius:3.4,color:palette()[3],kind:'rice',life:430});
+    }
+  }
+
+  function finalSpell(t,dt){
+    const e=state.enemy;
+    const cfg=difficulty().final;
+    e.x=stage.cx; e.y=stage.cy;
+    const p=state.pattern;
+    if(p.pause>0){
+      p.pause-=dt;
+      if(p.pause<=0){ p.spawnAcc=0; p.nextArm=0; p.armCounts=[0,0,0]; p.cycleIndex++; }
+    }else{
+      p.spawnAcc+=cfg.spawn*dt;
+      while(p.spawnAcc>=1){
+        const finished=p.armCounts.every(c=>c>=p.maxSeqPerArm);
+        if(finished){ p.pause=cfg.pause; p.spawnAcc=0; break; }
+        const arm=p.nextArm;
+        const seq=p.armCounts[arm];
+        state.bullets.push(new FinalOrb(arm,seq,p.cycleIndex));
+        p.armCounts[arm]++;
+        p.nextArm=(p.nextArm+1)%3;
+        p.spawnAcc-=1;
+        if(state.bullets.length>5200)state.bullets.splice(0,state.bullets.length-5200);
+      }
+    }
+  }
+
+  function bonusMirror(t){
+    const e=state.enemy;
+    const cfg=difficulty().mirror;
+    e.x=stage.cx; e.y=stage.cy;
+    const left={x:80,y:260+Math.sin(t*0.018)*105};
+    const right={x:stage.w-80,y:left.y};
+    state.emitters=[left,right];
+    const swap=Math.floor(t/150)%2;
+    state.pattern.swap=swap;
+
+    if(Math.floor(t)%cfg.aim===0){
+      const playerA=Math.atan2(state.player.y-left.y,state.player.x-left.x);
+      const mirrorA=Math.PI-playerA;
+      addFan(left.x,left.y,playerA,cfg.fanCount,0.30,1.8+(swap?0.22:0),{radius:4,color:palette()[0],kind:'rice',curve:0.0014,life:600});
+      addFan(right.x,right.y,mirrorA,cfg.fanCount,0.30,1.8+(!swap?0.22:0),{radius:4,color:palette()[2],kind:'rice',curve:-0.0014,life:600});
+    }
+    if(Math.floor(t)%cfg.wall===0){
+      for(let i=0;i<cfg.wallCount;i++){
+        const a=-0.95+1.9*i/(cfg.wallCount-1);
+        addBullet(left.x,left.y,a,1.55,{radius:3.5,color:palette()[1],life:520});
+        addBullet(right.x,right.y,Math.PI-a,1.55,{radius:3.5,color:palette()[1],life:520});
+      }
+    }
+  }
+
+  function trianglePoints(angle,r=112){
+    const pts=[];
+    for(let i=0;i<3;i++){
+      const a=angle-Math.PI/2+Math.PI*2*i/3;
+      pts.push({x:state.enemy.x+Math.cos(a)*r,y:state.enemy.y+Math.sin(a)*r,a});
+    }
+    return pts;
+  }
+
+  function bonusTriangle(t){
+    const e=state.enemy;
+    const cfg=difficulty().triangle;
+    e.x=stage.cx; e.y=stage.cy;
+    const ang=t*0.012;
+    const pts=trianglePoints(ang,115);
+    state.emitters=pts;
+    state.pattern.triAngle=ang;
+
+    if(Math.floor(t)%cfg.edge===0){
+      pts.forEach((p,i)=>{
+        const n=pts[(i+1)%3];
+        const edge=Math.atan2(n.y-p.y,n.x-p.x);
+        addBullet(p.x,p.y,edge,1.65,{radius:3.8,color:palette()[i],kind:'rice',curve:0.0018,life:620});
+        addBullet(p.x,p.y,edge+Math.PI,1.22,{radius:3.2,color:palette()[(i+1)%3],life:620});
+      });
+    }
+    if(Math.floor(t)%cfg.aim===0){
+      pts.forEach((p,i)=>addFan(p.x,p.y,aimAngle(p.x,p.y),cfg.fanCount,0.32,2.28,{radius:3.3,color:palette()[i],kind:'rice',life:420}));
+    }
+  }
+
+  function delayedSpiralBullet(arm,seq,cycle){
+    const d=difficulty();
+    const cfg=d.delayed;
+    const dir=cycle%2===0?1:-1;
+    const theta=Math.PI*2*arm/3+seq*0.22*dir;
+    const rr=18+seq*3.45;
+    const x=stage.cx+Math.cos(theta)*rr;
+    const y=stage.cy+Math.sin(theta)*rr;
+    const color=palette()[arm];
+    const delay=95+seq*1.0;
+    return new Bullet(x,y,0,0,{
+      radius:4.0,color,life:delay+520,fadeIn:12,
+      updateFn:(b,dt)=>{
+        if(b.age<delay){
+          b.x=x+Math.cos(b.age*0.08+seq)*0.25;
+          b.y=y+Math.sin(b.age*0.08+seq)*0.25;
+          b.hit=false;
+        }else{
+          if(!b.data.launched){
+            b.data.launched=true; b.hit=true;
+            const radial=Math.atan2(y-stage.cy,x-stage.cx);
+            const target=aimAngle(x,y);
+            const a=lerp(radial,target,cfg.aim);
+            b.vx=Math.cos(a)*2.25*d.speed; b.vy=Math.sin(a)*2.25*d.speed;
+            burstEffect(b.x,b.y,color,28);
+          }
+          b.x+=b.vx*dt; b.y+=b.vy*dt;
+        }
+      },
+      drawFn:(b,ctx)=>{
+        const pre=clamp(b.age/delay,0,1);
+        const pulse=b.age<delay?0.45+0.55*Math.sin(pre*Math.PI*8)**2:1;
+        const a=b.age<delay?0.34+0.56*pre:1;
+        const r=b.radius*(b.age<delay?0.78+0.2*pulse:1);
+        ctx.save();
+        ctx.strokeStyle=hexToRgba(color,0.45*a);
+        ctx.lineWidth=1.2;
+        ctx.beginPath(); ctx.arc(b.x,b.y,r*1.9,0,Math.PI*2); ctx.stroke();
+        ctx.fillStyle=hexToRgba(color,0.95*a); ctx.beginPath(); ctx.arc(b.x,b.y,r,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+    });
+  }
+
+  function spellDelayed(t){
+    const e=state.enemy;
+    const cfg=difficulty().delayed;
+    e.x=stage.cx; e.y=stage.cy;
+    const p=state.pattern;
+    const cycleLen=cfg.cycle;
+    const local=mod(t,cycleLen);
+    if(local<cfg.draw && Math.floor(t)%cfg.spawn===0 && p.seq<cfg.seq){
+      for(let arm=0;arm<3;arm++) state.bullets.push(delayedSpiralBullet(arm,p.seq,p.cycle));
+      p.seq++;
+    }
+    if(Math.floor(local)===cfg.draw+6){
+      addRing(e.x,e.y,12,0.86,t*0.012,{radius:3.0,color:palette()[3],life:180,hit:false});
+      burstEffect(e.x,e.y,palette()[(p.cycle+1)%3],110);
+    }
+    if(Math.floor(local)===cfg.release){ p.seq=0; p.cycle++; burstEffect(e.x,e.y,palette()[p.cycle%3],150); }
+    if(Math.floor(t)%cfg.ring===0) addRing(e.x,e.y,cfg.ringCount,1.08,t*0.015,{radius:3.2,color:palette()[3],life:650});
+  }
+
+  function updatePattern(dt){
+    if(state.phaseIntro>38||state.enemy.defeated)return;
+    const t=state.phaseAge;
+    switch(state.phaseIndex){
+      case 0: normalOne(t); break;
+      case 1: normalTwo(t); break;
+      case 2: normalThree(t); break;
+      case 3: spellOne(t); break;
+      case 4: spellDelayed(t); break;
+      case 5: finalSpell(t,dt); break;
+      case 6: spellTwo(t); break;
+      case 7: bonusMirror(t); break;
+      case 8: bonusTriangle(t); break;
+    }
+  }
+
+  function update(dtMs){
+    if(state.paused)return;
+    const dt=dtMs/16.6667;
+    state.frame+=dt;
+    state.time+=dtMs;
+    if(state.phaseIntro>0)state.phaseIntro-=dt;
+    if(state.phaseClear>0){
+      state.phaseClear-=dt;
+      if(state.phaseClear<=0){
+        if(state.phaseIndex<5) initPhase(state.phaseIndex+1,true);
+        else if(state.phaseIndex===5) state.campaignClear=true;
+        else initPhase(state.phaseIndex,true);
+      }
+    }
+    if(!state.enemy.defeated)state.phaseAge+=dt;
+
+    updatePlayer(dt);
+    updateBomb(dt);
+    updatePattern(dt);
+
+    for(let i=state.bullets.length-1;i>=0;i--){
+      const b=state.bullets[i];
+      b.update(dt);
+      if(!b.dead && b.hit!==false && state.player.invuln<=0){
+        const rr=(b.radius||4)+state.player.radius;
+        if(Math.hypot(b.x-state.player.x,b.y-state.player.y)<rr){
+          state.player.hitCount++;
+          state.player.hitFlash=18;
+          state.player.invuln=30;
+          b.dead=true;
+        }
+      }
+      if(b.dead)state.bullets.splice(i,1);
+    }
+
+    for(let i=state.playerShots.length-1;i>=0;i--){
+      const s=state.playerShots[i];
+      s.update(dt);
+      if(!s.dead&&!state.enemy.defeated&&Math.hypot(s.x-state.enemy.x,s.y-state.enemy.y)<state.enemy.radius+s.radius){
+        damageEnemy(s.damage); s.dead=true;
+      }
+      if(s.dead)state.playerShots.splice(i,1);
+    }
+
+    for(let i=state.effects.length-1;i>=0;i--){
+      const ef=state.effects[i]; ef.age+=dt; if(ef.age>=ef.life)state.effects.splice(i,1);
+    }
+    if(state.player.hitFlash>0)state.player.hitFlash-=dt;
+    if(state.enemy.hitFlash>0)state.enemy.hitFlash-=dt;
+    updateHud();
+  }
+
+  function drawBackground(ctx){
+    const def=phaseDefs[state.phaseIndex];
+    ctx.fillStyle=def.bg;
+    ctx.fillRect(0,0,stage.w,stage.h);
+    const p=palette();
+    const grd=ctx.createRadialGradient(stage.cx,stage.cy,20,stage.cx,stage.cy,470);
+    grd.addColorStop(0,hexToRgba(p[1],0.07));
+    grd.addColorStop(0.5,hexToRgba(p[0],0.025));
+    grd.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grd; ctx.fillRect(0,0,stage.w,stage.h);
+    ctx.strokeStyle='rgba(190,220,255,0.06)'; ctx.lineWidth=1;
+    for(let i=1;i<=9;i++){ ctx.beginPath(); ctx.arc(stage.cx,stage.cy,i*42,0,Math.PI*2); ctx.stroke(); }
+    ctx.strokeStyle='rgba(255,255,255,0.035)';
+    for(let x=0;x<=stage.w;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,stage.h);ctx.stroke();}
+  }
+
+  function drawEmitters(ctx){
+    if(!state.emitters.length)return;
+    ctx.save(); ctx.globalCompositeOperation='screen';
+    state.emitters.forEach((o,i)=>{
+      const color=palette()[i%3];
+      const g=ctx.createRadialGradient(o.x,o.y,0,o.x,o.y,28);
+      g.addColorStop(0,hexToRgba(color,0.48)); g.addColorStop(1,hexToRgba(color,0));
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(o.x,o.y,28,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle=hexToRgba(color,0.6); ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(o.x,o.y,8,0,Math.PI*2); ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(o.x,o.y,3,0,Math.PI*2); ctx.fill();
+    });
+    if(state.phaseIndex===8&&state.emitters.length===3){
+      ctx.strokeStyle=hexToRgba(palette()[1],0.28); ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.moveTo(state.emitters[0].x,state.emitters[0].y);
+      ctx.lineTo(state.emitters[1].x,state.emitters[1].y);
+      ctx.lineTo(state.emitters[2].x,state.emitters[2].y); ctx.closePath(); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawEnemy(ctx){
+    const e=state.enemy, p=palette();
+    const intro=state.phaseIntro>0?1-clamp(state.phaseIntro/120,0,1):1;
+    const flash=e.hitFlash>0;
+    const pulse=1+Math.sin(state.phaseAge*0.07)*0.04;
+    const r=e.radius*pulse;
+    const glow=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,80);
+    glow.addColorStop(0,hexToRgba('#fff',0.78*intro));
+    glow.addColorStop(0.14,hexToRgba(flash?'#fff':p[0],0.78*intro));
+    glow.addColorStop(0.5,hexToRgba(p[2],0.18*intro));
+    glow.addColorStop(1,hexToRgba(p[2],0));
+    ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(e.x,e.y,80,0,Math.PI*2); ctx.fill();
+    ctx.save(); ctx.translate(e.x,e.y); ctx.rotate(state.phaseAge*0.012);
+    ctx.strokeStyle=hexToRgba(p[1],0.62*intro); ctx.lineWidth=2;
+    ctx.beginPath();
+    for(let i=0;i<6;i++){ const a=i*Math.PI/3, x=Math.cos(a)*35,y=Math.sin(a)*35; if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); }
+    ctx.closePath(); ctx.stroke(); ctx.restore();
+    ctx.fillStyle=flash?'#fff':p[0]; ctx.beginPath(); ctx.arc(e.x,e.y,r,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(e.x-r*.18,e.y-r*.18,r*.38,0,Math.PI*2); ctx.fill();
+  }
+
+  function drawPlayer(ctx){
+    const p=state.player;
+    const flash=p.hitFlash>0, inv=p.invuln>0;
+    ctx.save();
+    const glow=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.slow?22:16);
+    glow.addColorStop(0,flash?'rgba(255,80,100,.42)':inv?'rgba(255,230,130,.35)':'rgba(115,240,255,.30)');
+    glow.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=glow;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.slow?22:16,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=flash?'#ff486f':inv?'#ffe074':'#73f0ff'; ctx.lineWidth=1.4;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.slow?9:6.8,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle='#ff4f9f'; ctx.beginPath(); ctx.arc(p.x,p.y,p.radius,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawBomb(ctx){
+    const b=state.bomb;if(!b.active)return;
+    const a=1-clamp(b.age/b.duration,0,1);
+    ctx.save();ctx.globalCompositeOperation='screen';
+    ctx.strokeStyle=`rgba(255,255,255,${0.8*a})`;ctx.lineWidth=8;
+    ctx.beginPath();ctx.arc(b.x,b.y,b.radius,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle=`rgba(115,240,255,${0.55*a})`;ctx.lineWidth=4;
+    ctx.beginPath();ctx.arc(b.x,b.y,Math.max(0,b.radius-25),0,Math.PI*2);ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawEffects(ctx){
+    ctx.save();ctx.globalCompositeOperation='screen';
+    state.effects.forEach(e=>{
+      const t=clamp(e.age/e.life,0,1), r=e.size*(1-Math.pow(1-t,2));
+      ctx.strokeStyle=hexToRgba(e.color,(1-t)*0.65);ctx.lineWidth=lerp(5,1,t);
+      ctx.beginPath();ctx.arc(e.x,e.y,r,0,Math.PI*2);ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function drawHp(ctx){
+    const e=state.enemy;
+    const x=52,y=26,w=stage.w-104,h=13;
+    const ratio=clamp(e.hp/e.maxHp,0,1);
+    ctx.fillStyle='rgba(0,0,0,.58)';ctx.fillRect(x-4,y-4,w+8,h+8);
+    ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(x,y,w,h);
+    const g=ctx.createLinearGradient(x,0,x+w,0);
+    g.addColorStop(0,palette()[3]);g.addColorStop(.55,palette()[2]);g.addColorStop(1,palette()[0]);
+    ctx.fillStyle=g;ctx.fillRect(x,y,w*ratio,h);
+    ctx.strokeStyle='rgba(255,255,255,.5)';ctx.strokeRect(x,y,w,h);
+    ctx.fillStyle='rgba(255,255,255,.94)';ctx.font='bold 12px Segoe UI';
+    ctx.textAlign='left';ctx.fillText(phaseDefs[state.phaseIndex].type,x,y-7);
+    ctx.textAlign='right';ctx.fillText(`${Math.ceil(e.hp)} / ${e.maxHp}`,x+w,y-7);
+  }
+
+  function drawPhaseTitle(ctx){
+    if(state.phaseIntro<=0&&state.phaseClear<=0&&!state.campaignClear)return;
+    ctx.save();ctx.textAlign='center';
+    if(state.campaignClear){
+      ctx.fillStyle='rgba(0,0,0,.46)';ctx.fillRect(0,0,stage.w,stage.h);
+      ctx.font='bold 35px Segoe UI';ctx.fillStyle='#fff';ctx.fillText('ALL SPELL BREAK',stage.cx,stage.h/2-12);
+      ctx.font='15px Segoe UI';ctx.fillStyle='rgba(255,255,255,.8)';ctx.fillText('1～9で任意の弾幕を再確認できます',stage.cx,stage.h/2+26);
+      ctx.restore();return;
+    }
+    const def=phaseDefs[state.phaseIndex];
+    if(state.phaseClear>0){
+      const a=clamp(state.phaseClear/100,0,1);
+      ctx.font='bold 32px Segoe UI';ctx.fillStyle=`rgba(255,255,255,${a})`;ctx.fillText('SPELL BREAK',stage.cx,stage.h/2);
+    }else{
+      const elapsed=120-state.phaseIntro;
+      const a=clamp(elapsed/25,0,1)*clamp(state.phaseIntro/32,0,1);
+      ctx.fillStyle=`rgba(0,0,0,${0.42*a})`;ctx.fillRect(0,stage.h/2-74,stage.w,145);
+      ctx.font='bold 15px Segoe UI';ctx.fillStyle=hexToRgba(palette()[0],a);ctx.fillText(def.type,stage.cx,stage.h/2-30);
+      ctx.font='bold 29px "Yu Gothic UI", sans-serif';ctx.fillStyle=`rgba(255,255,255,${a})`;ctx.fillText(def.name,stage.cx,stage.h/2+8);
+      ctx.font='13px "Yu Gothic UI", sans-serif';ctx.fillStyle=`rgba(255,255,255,${0.74*a})`;ctx.fillText(def.subtitle,stage.cx,stage.h/2+38);
+    }
+    ctx.restore();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,vw,vh);
+    ctx.fillStyle='#080d19';ctx.fillRect(0,0,vw,vh);
+    ctx.save();ctx.translate(stage.x,stage.y);ctx.scale(stage.scale,stage.scale);
+    drawBackground(ctx);
+    ctx.save();ctx.beginPath();ctx.rect(0,0,stage.w,stage.h);ctx.clip();
+    drawEmitters(ctx);
+    state.bullets.forEach(b=>b.draw(ctx));
+    state.playerShots.forEach(s=>s.draw(ctx));
+    drawEffects(ctx);drawBomb(ctx);drawEnemy(ctx);drawPlayer(ctx);drawHp(ctx);drawPhaseTitle(ctx);
+    ctx.restore();
+    ctx.strokeStyle='rgba(255,255,255,.16)';ctx.lineWidth=2;ctx.strokeRect(0,0,stage.w,stage.h);
+    ctx.restore();
+  }
+
+  function updateHud(){
+    const d=phaseDefs[state.phaseIndex];
+    phaseText.textContent=`[${difficulty().label}] ${state.phaseIndex+1}. ${d.type}　${d.name}`;
+    const dir=(state.phaseIndex===1||state.phaseIndex===6)?` / 回転: ${state.pattern.dir<0?'反時計':'時計'}`:'';
+    statusText.textContent=`HP ${Math.ceil(state.enemy.hp)} / 弾 ${state.bullets.length} / 被弾 ${state.player.hitCount}${dir}${state.paused?' / 停止中':''}`;
+  }
+
+  addEventListener('keydown',e=>{
+    const k=e.key.toLowerCase();state.input[k]=true;
+    if(['arrowleft','arrowright','arrowup','arrowdown',' ','x'].includes(k))e.preventDefault();
+    if(e.repeat)return;
+    if(k===' ')state.paused=!state.paused;
+    else if(k==='r')initPhase(state.phaseIndex,true);
+    else if(k==='n')nextPhase();
+    else if(k==='p')prevPhase();
+    else if(k==='x')activateBomb();
+    else if(k==='e')setDifficulty('easy');
+    else if(k==='m')setDifficulty('normal');
+    else if(k==='h')setDifficulty('hard');
+    else if(/^[1-9]$/.test(k))initPhase(Number(k)-1,true);
+  });
+  addEventListener('keyup',e=>{state.input[e.key.toLowerCase()]=false;});
+
+  difficultyButtons.forEach(button=>button.addEventListener('click',()=>setDifficulty(button.dataset.difficulty)));
+  syncDifficultyButtons();
+  initPhase(0,false);
+  let last=performance.now();
+  function loop(now){
+    const dt=Math.min(33,now-last);last=now;
+    update(dt);draw();requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
