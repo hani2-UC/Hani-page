@@ -88,7 +88,7 @@
     <button type="button" data-difficulty="normal">NORMAL</button>
     <button type="button" data-difficulty="hard">HARD</button>
   </div>
-  <div class="phase-list">1～6: 本編 / 7～9: 追加案　N: 次　P: 前　R: 再開　E/M/H: 難易度</div>
+  <div class="phase-list">1～6: 本編 / 7～9: 追加案　N: 次　P: 前　R: 再開　E/M/H: 難易度　I: AI操縦</div>
 </div>
 <div class="corner">移動: WASD / 矢印　低速: Shift　射撃: Z　霊撃: X　停止: Space</div>
 <script>
@@ -214,6 +214,9 @@
   const state = {
     paused:false,
     difficulty:'easy',
+    aiPilot:new URLSearchParams(location.search).get('autoplay')==='1',
+    aiDirection:{x:0,y:0},
+    aiNextDecision:0,
     phaseIndex:0,
     phaseAge:0,
     phaseIntro:0,
@@ -583,7 +586,69 @@
     if(b.age>=b.duration)b.active=false;
   }
 
+  function setAiPilot(enabled){
+    state.aiPilot=enabled;
+    state.aiNextDecision=0;
+    state.aiDirection={x:0,y:0};
+    if(!enabled){
+      state.input.arrowleft=false; state.input.arrowright=false;
+      state.input.arrowup=false; state.input.arrowdown=false;
+      state.input.shift=false; state.input.z=false;
+    }
+    updateHud();
+  }
+
+  function updateAiPilot(){
+    if(!state.aiPilot)return;
+    const p=state.player;
+    state.input.z=true;
+    state.input.shift=true;
+
+    if(state.frame>=state.aiNextDecision){
+      state.aiNextDecision=state.frame+4;
+      const dirs=[{x:0,y:0}];
+      for(let i=0;i<16;i++){
+        const a=Math.PI*2*i/16;
+        dirs.push({x:Math.cos(a),y:Math.sin(a)});
+      }
+      let best=dirs[0], bestScore=Infinity, nearest=Infinity;
+      for(const b of state.bullets){
+        if(b.dead||b.hit===false)continue;
+        nearest=Math.min(nearest,Math.hypot(b.x-p.x,b.y-p.y)-(b.radius||4)-p.radius);
+      }
+      for(const dir of dirs){
+        const cx=clamp(p.x+dir.x*42,22,stage.w-22);
+        const cy=clamp(p.y+dir.y*42,stage.h*0.48,stage.h-22);
+        let score=Math.abs(cx-stage.cx)*0.018+Math.abs(cy-(stage.h-125))*0.028;
+        if(cx<48||cx>stage.w-48||cy>stage.h-48)score+=28;
+        if(dir.x!==state.aiDirection.x||dir.y!==state.aiDirection.y)score+=2.5;
+        for(const b of state.bullets){
+          if(b.dead||b.hit===false)continue;
+          const vx=Number(b.vx)||0, vy=Number(b.vy)||0;
+          for(const horizon of [0,8,18]){
+            const dx=b.x+vx*horizon-cx, dy=b.y+vy*horizon-cy;
+            const d2=dx*dx+dy*dy;
+            const safe=125+(b.radius||4)*2;
+            if(d2<safe*safe)score+=(safe*safe-d2)/160;
+            const danger=(b.radius||4)+p.radius+13;
+            if(d2<danger*danger)score+=9000;
+          }
+        }
+        if(score<bestScore){bestScore=score;best=dir;}
+      }
+      state.aiDirection=best;
+      if(nearest<24&&p.invuln<=0&&p.bombCooldown<=0)activateBomb();
+    }
+
+    const dir=state.aiDirection;
+    state.input.arrowleft=dir.x<-0.2;
+    state.input.arrowright=dir.x>0.2;
+    state.input.arrowup=dir.y<-0.2;
+    state.input.arrowdown=dir.y>0.2;
+  }
+
   function updatePlayer(dt){
+    updateAiPilot();
     const p=state.player;
     const left=state.input.arrowleft||state.input.a;
     const right=state.input.arrowright||state.input.d;
@@ -1105,7 +1170,7 @@
     const d=phaseDefs[state.phaseIndex];
     phaseText.textContent=`[${difficulty().label}] ${state.phaseIndex+1}. ${d.type}　${d.name}`;
     const dir=(state.phaseIndex===1||state.phaseIndex===6)?` / 回転: ${state.pattern.dir<0?'反時計':'時計'}`:'';
-    statusText.textContent=`HP ${Math.ceil(state.enemy.hp)} / 弾 ${state.bullets.length} / 被弾 ${state.player.hitCount}${dir}${state.paused?' / 停止中':''}`;
+    statusText.textContent=`HP ${Math.ceil(state.enemy.hp)} / 弾 ${state.bullets.length} / 被弾 ${state.player.hitCount}${dir}${state.aiPilot?' / AI操縦':''}${state.paused?' / 停止中':''}`;
   }
 
   addEventListener('keydown',e=>{
@@ -1120,6 +1185,7 @@
     else if(k==='e')setDifficulty('easy');
     else if(k==='m')setDifficulty('normal');
     else if(k==='h')setDifficulty('hard');
+    else if(k==='i')setAiPilot(!state.aiPilot);
     else if(/^[1-9]$/.test(k))initPhase(Number(k)-1,true);
   });
   addEventListener('keyup',e=>{state.input[e.key.toLowerCase()]=false;});
