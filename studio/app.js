@@ -41,7 +41,7 @@ const initialProject = {
     { id: "guide-intro", assetId: "demo-orange", kind: "video", name: "00 はじめに", start: 0, duration: 3.2, trimStart: 0, demoVariant: 0, transform: makeTransform(), filter: "none", volume: 0 },
     { id: "guide-import", assetId: "demo-orange", kind: "video", name: "01 素材を読み込む", start: 3.2, duration: 3.8, trimStart: 3.2, demoVariant: 1, transform: makeTransform(), filter: "none", volume: 0 },
     { id: "guide-timeline", assetId: "demo-orange", kind: "video", name: "02 トラックを選んで重ねる", start: 7, duration: 3.8, trimStart: 7, demoVariant: 2, transform: makeTransform(), filter: "none", volume: 0 },
-    { id: "guide-trim", assetId: "demo-orange", kind: "video", name: "03 動きと見た目を整える", start: 10.8, duration: 3.8, trimStart: 10.8, demoVariant: 3, transform: makeTransform(), filter: "none", volume: 0 },
+    { id: "guide-trim", assetId: "demo-orange", kind: "video", name: "03 カットして整える", start: 10.8, duration: 3.8, trimStart: 10.8, demoVariant: 3, transform: makeTransform(), filter: "none", volume: 0 },
     { id: "guide-text", assetId: "demo-orange", kind: "video", name: "04 テキストを入れる", start: 14.6, duration: 3.8, trimStart: 14.6, demoVariant: 4, transform: makeTransform(), filter: "none", volume: 0 },
     { id: "guide-preview", assetId: "demo-orange", kind: "video", name: "05 再生して確認", start: 18.4, duration: 3.6, trimStart: 18.4, demoVariant: 5, transform: makeTransform(), filter: "none", volume: 0 },
     { id: "guide-export", assetId: "demo-orange", kind: "video", name: "06 動画を書き出す", start: 22, duration: 3.8, trimStart: 22, demoVariant: 6, transform: makeTransform(), filter: "none", volume: 0 },
@@ -78,6 +78,7 @@ let saveTimer = 0;
 let databasePromise = null;
 let draggedClipId = null;
 let audioGraph = null;
+let contextMenuReturnFocus = null;
 const mediaInstances = new Map();
 
 function projectSnapshot() {
@@ -306,6 +307,69 @@ function showToast(message) {
   toast.textContent = message;
   toast.hidden = false;
   toastTimer = window.setTimeout(() => { toast.hidden = true; }, 2400);
+}
+
+function closeContextMenu(restoreFocus = false) {
+  const menu = $("#contextMenu");
+  if (menu.hidden) return;
+  menu.hidden = true;
+  menu.replaceChildren();
+  if (restoreFocus && contextMenuReturnFocus?.isConnected) contextMenuReturnFocus.focus({ preventScroll: true });
+  contextMenuReturnFocus = null;
+}
+
+function openContextMenu(title, items, event, returnFocus = null) {
+  const menu = $("#contextMenu");
+  const heading = document.createElement("p");
+  heading.className = "context-menu-heading";
+  heading.textContent = title;
+  const children = [heading];
+  items.forEach((item) => {
+    if (item.separator) {
+      const separator = document.createElement("div");
+      separator.className = "context-menu-separator";
+      separator.setAttribute("role", "separator");
+      children.push(separator);
+      return;
+    }
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `context-menu-item${item.danger ? " is-danger" : ""}`;
+    button.setAttribute("role", "menuitem");
+    button.disabled = Boolean(item.disabled);
+    const icon = document.createElement("span");
+    icon.className = "context-menu-icon";
+    icon.textContent = item.icon || "•";
+    const label = document.createElement("span");
+    label.className = "context-menu-label";
+    label.textContent = item.label;
+    const shortcut = document.createElement("kbd");
+    shortcut.textContent = item.shortcut || "";
+    button.append(icon, label, shortcut);
+    if (!button.disabled) button.addEventListener("click", () => {
+      closeContextMenu();
+      item.action?.();
+    });
+    children.push(button);
+  });
+  menu.replaceChildren(...children);
+  contextMenuReturnFocus = returnFocus;
+  menu.hidden = false;
+  menu.style.left = "0px";
+  menu.style.top = "0px";
+  const anchorRect = event.target.getBoundingClientRect();
+  const requestedX = event.clientX || anchorRect.left + Math.min(24, anchorRect.width / 2);
+  const requestedY = event.clientY || anchorRect.top + Math.min(24, anchorRect.height / 2);
+  const left = clamp(requestedX, 8, Math.max(8, window.innerWidth - menu.offsetWidth - 8));
+  const top = clamp(requestedY, 8, Math.max(8, window.innerHeight - menu.offsetHeight - 8));
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  menu.querySelector("button:not(:disabled)")?.focus({ preventScroll: true });
+}
+
+function timelineTimeFromClientX(clientX) {
+  const rect = $("#timelineContent").getBoundingClientRect();
+  return clamp((clientX - rect.left) / rect.width, 0, 1) * state.duration;
 }
 
 function switchPanel(name) {
@@ -902,7 +966,7 @@ function drawDemoScene(target, width, height, variant, localTime) {
       null,
       ["素材を読み込む", "左の「素材を選ぶ」へ、動画・画像・音声をドロップ。"],
       ["トラックを選んで重ねる", "＋トラックから、映像・画像、音声、字幕を選べます。"],
-      ["動きと見た目を整える", "右側でアニメ・合成・色調・クロマキー。画面上で移動。"],
+      ["カットして整える", "右クリックで分割・削除。リップル削除なら後ろの素材も詰められます。"],
       ["テキストを入れる", "フォント、縁取り、影、位置を調整してタイトルや字幕を追加。"],
       ["再生して確認する", "再生ボタンやスペースキーで、いつでもプレビュー。"],
       ["保存して書き出す", "作業データは再編集用、完成動画は最大60fpsで保存。"]
@@ -1488,6 +1552,67 @@ function deleteSelected() {
   showToast("選択した項目を削除しました");
 }
 
+function rippleDeleteFromList(list, target) {
+  const index = list.findIndex((item) => item.id === target.id);
+  if (index < 0) return 0;
+  const lane = Number(target.lane) || 0;
+  const removedDuration = Math.max(.5, Number(target.duration) || .5);
+  const removedEnd = (Number(target.start) || 0) + removedDuration;
+  list.splice(index, 1);
+  let shifted = 0;
+  list.forEach((item) => {
+    if ((Number(item.lane) || 0) !== lane || item.start < removedEnd - .001) return;
+    item.start = Math.max(0, item.start - removedDuration);
+    shifted += 1;
+  });
+  return shifted;
+}
+
+function rippleDeleteSelected() {
+  const selected = selectedItem();
+  if (!selected) return showToast("リップル削除する項目を選んでください");
+  pushHistory();
+  const list = selected.track === "video" ? state.clips : selected.track === "text" ? state.texts : state.audios;
+  const removedStart = selected.item.start;
+  const shifted = rippleDeleteFromList(list, selected.item);
+  disposeMediaInstance(selected.item.id);
+  state.selectedId = null;
+  state.time = removedStart;
+  normalizeTimeline();
+  renderAll();
+  updateMediaPlayback();
+  queueSave();
+  showToast(shifted ? `リップル削除して、後ろの${shifted}項目を詰めました` : "リップル削除しました");
+}
+
+function toggleSelectedEnabled() {
+  const selected = selectedItem();
+  if (!selected) return;
+  pushHistory();
+  selected.item.enabled = selected.item.enabled === false;
+  const enabled = selected.item.enabled;
+  renderAll();
+  queueSave();
+  showToast(enabled ? "選択項目を有効にしました" : "選択項目を無効にしました");
+}
+
+function addTimelineTrack(kind) {
+  const config = kind === "video" ? { key: "visualLanes", prefix: "V", label: "映像・画像" }
+    : kind === "audio" ? { key: "audioLanes", prefix: "A", label: "音声" }
+      : kind === "text" ? { key: "textLanes", prefix: "T", label: "字幕" } : null;
+  if (!config) return false;
+  if (state[config.key] >= 24) {
+    showToast(`${config.label}トラックは最大24本です`);
+    return false;
+  }
+  pushHistory();
+  state[config.key] += 1;
+  renderTimeline();
+  queueSave();
+  showToast(`${config.prefix}${state[config.key]} ${config.label}トラックを追加しました`);
+  return true;
+}
+
 function jumpToBoundary(direction) {
   const items = [...state.clips, ...state.texts, ...state.audios];
   const points = [0, state.duration, ...items.flatMap((item) => [item.start, item.start + item.duration])].sort((a, b) => a - b);
@@ -1885,7 +2010,7 @@ async function downloadProjectData() {
     const payload = {
       format: "HANI_CUT_PROJECT",
       version: 1,
-      appVersion: 4,
+      appVersion: 5,
       name: $("#projectName").value || "HANI CUT プロジェクト",
       savedAt: new Date().toISOString(),
       project: projectSnapshot(),
@@ -2185,6 +2310,65 @@ function setupEvents() {
     const start = clamp((event.clientX - rect.left) / rect.width, 0, 1) * state.duration;
     addAssetToTimeline(assetId, { start, lane });
   });
+  timeline.addEventListener("contextmenu", (event) => {
+    const clipElement = event.target.closest(".timeline-clip");
+    const trackElement = event.target.closest(".track");
+    const rulerElement = event.target.closest(".time-ruler, .playhead");
+    if (!clipElement && !trackElement && !rulerElement) return;
+    event.preventDefault();
+    const contextTime = event.clientX ? timelineTimeFromClientX(event.clientX) : state.time;
+    if (clipElement) {
+      selectItem(clipElement.dataset.id);
+      const selected = selectedItem();
+      if (!selected) return;
+      const canSplit = ["video", "audio"].includes(selected.track)
+        && contextTime - selected.item.start >= .25
+        && selected.item.start + selected.item.duration - contextTime >= .25;
+      const items = [];
+      if (["video", "audio"].includes(selected.track)) items.push({
+        label: "ここで分割", icon: "✂", shortcut: canSplit ? "" : "端では不可", disabled: !canSplit,
+        action: () => { setCurrentTime(contextTime); splitSelected(); }
+      });
+      items.push(
+        { label: "複製", icon: "＋", shortcut: "Ctrl+D", action: duplicateSelected },
+        { label: selected.item.enabled === false ? "有効にする" : "無効にする", icon: selected.item.enabled === false ? "ON" : "OFF", action: toggleSelectedEnabled },
+        { separator: true },
+        { label: "リップル削除", icon: "≪", shortcut: "Shift+Delete", danger: true, action: rippleDeleteSelected },
+        { label: "削除", icon: "×", shortcut: "Delete", danger: true, action: deleteSelected }
+      );
+      const typeName = selected.track === "video" ? "映像・画像クリップ" : selected.track === "audio" ? "音声クリップ" : "字幕";
+      openContextMenu(`${typeName}：${selected.item.name}`, items, event);
+      return;
+    }
+    if (rulerElement) {
+      openContextMenu("時間目盛り", [
+        { label: "ここへ再生位置を移動", icon: "▶", action: () => setCurrentTime(contextTime) },
+        { separator: true },
+        { label: "前のクリップ境界へ", icon: "←", action: () => jumpToBoundary(-1) },
+        { label: "次のクリップ境界へ", icon: "→", action: () => jumpToBoundary(1) }
+      ], event, $("#playhead"));
+      return;
+    }
+    const kind = trackElement.dataset.track;
+    const label = kind === "video" ? "映像・画像" : kind === "audio" ? "音声" : "字幕";
+    const lane = Number(trackElement.dataset.lane) + 1;
+    const items = [{ label: "ここへ再生位置を移動", icon: "▶", action: () => setCurrentTime(contextTime) }];
+    if (kind === "text") items.push({ label: "ここに字幕を追加", icon: "T", action: () => { setCurrentTime(contextTime); addText("subtitle"); } });
+    items.push({ separator: true }, { label: `${label}トラックを追加`, icon: "＋", action: () => addTimelineTrack(kind) });
+    openContextMenu(`${kind === "video" ? "V" : kind === "audio" ? "A" : "T"}${lane} ${label}トラック`, items, event, trackElement);
+  });
+
+  $("#trackLabels").addEventListener("contextmenu", (event) => {
+    const trackLabel = event.target.closest(".track-label");
+    if (!trackLabel) return;
+    event.preventDefault();
+    const kind = trackLabel.dataset.track;
+    const label = kind === "video" ? "映像・画像" : kind === "audio" ? "音声" : "字幕";
+    const lane = Number(trackLabel.dataset.lane) + 1;
+    openContextMenu(`${kind === "video" ? "V" : kind === "audio" ? "A" : "T"}${lane} ${label}トラック`, [
+      { label: "同じ種類のトラックを追加", icon: "＋", action: () => addTimelineTrack(kind) }
+    ], event, trackLabel);
+  });
 
   $("#snapButton").addEventListener("click", (event) => {
     const active = event.currentTarget.classList.toggle("is-active");
@@ -2200,23 +2384,24 @@ function setupEvents() {
   };
   addTrackButton.addEventListener("click", () => setTrackMenu(trackMenu.hidden));
   $$("#trackMenu button").forEach((button) => button.addEventListener("click", () => {
-    const kind = button.dataset.trackKind;
-    const key = kind === "video" ? "visualLanes" : kind === "audio" ? "audioLanes" : "textLanes";
-    const prefix = kind === "video" ? "V" : kind === "audio" ? "A" : "T";
-    const label = kind === "video" ? "映像・画像" : kind === "audio" ? "音声" : "字幕";
-    if (state[key] >= 24) {
-      setTrackMenu(false);
-      return showToast(`${label}トラックは最大24本です`);
-    }
-    state[key] += 1;
-    renderTimeline();
-    queueSave();
+    addTimelineTrack(button.dataset.trackKind);
     setTrackMenu(false);
-    showToast(`${prefix}${state[key]} ${label}トラックを追加しました`);
   }));
   document.addEventListener("pointerdown", (event) => {
     if (!event.target.closest(".track-picker") && !trackMenu.hidden) setTrackMenu(false);
+    if (!event.target.closest("#contextMenu") && !$("#contextMenu").hidden) closeContextMenu();
   });
+  $("#contextMenu").addEventListener("keydown", (event) => {
+    const buttons = $$("#contextMenu button:not(:disabled)");
+    if (!buttons.length || !["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    const current = Math.max(0, buttons.indexOf(document.activeElement));
+    const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1
+      : (current + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) % buttons.length;
+    buttons[next].focus({ preventScroll: true });
+  });
+  $("#timelineScroll").addEventListener("scroll", () => closeContextMenu());
+  window.addEventListener("blur", () => closeContextMenu());
 
   const timelineZoom = $("#timelineZoom");
   timelineZoom.addEventListener("input", () => { state.timelineZoom = Number(timelineZoom.value); renderTimeline(); });
@@ -2240,12 +2425,13 @@ function setupEvents() {
   document.addEventListener("keydown", (event) => {
     const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName);
     if (event.key === "Escape" && !trackMenu.hidden) setTrackMenu(false);
+    if (event.key === "Escape" && !$("#contextMenu").hidden) { event.preventDefault(); closeContextMenu(true); }
     if (event.code === "Space" && !typing) { event.preventDefault(); togglePlayback(); }
     if (["ArrowLeft", "ArrowRight"].includes(event.key) && !typing && document.activeElement?.id !== "playhead") {
       event.preventDefault();
       setCurrentTime(state.time + (event.key === "ArrowLeft" ? -1 : 1) * (event.shiftKey ? 1 : 1 / 30));
     }
-    if ((event.key === "Delete" || event.key === "Backspace") && !typing) deleteSelected();
+    if ((event.key === "Delete" || event.key === "Backspace") && !typing) { event.preventDefault(); event.shiftKey ? rippleDeleteSelected() : deleteSelected(); }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "d" && !typing) { event.preventDefault(); duplicateSelected(); }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") { event.preventDefault(); event.shiftKey ? redo() : undo(); }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "y") { event.preventDefault(); redo(); }
