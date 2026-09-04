@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#121210">
+  <meta name="robots" content="index,follow,max-image-preview:large">
+  <meta name="description" content="素材を外へ送らず、ブラウザだけで編集できる hani.moe の動画編集スタジオ。">
+  <link rel="canonical" href="https://hani.moe/studio/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="hani.moe">
+  <meta property="og:title" content="HANI CUT｜無料のブラウザ動画編集ツール">
+  <meta property="og:description" content="ブラウザだけで、動画をつくる。素材を外へ送らずに編集できる hani.moe の動画編集スタジオ。">
+  <meta property="og:url" content="https://hani.moe/studio/">
+  <meta property="og:image" content="https://hani.moe/studio/og.png">
+  <meta property="og:image:width" content="1731">
+  <meta property="og:image:height" content="909">
+  <meta property="og:locale" content="ja_JP">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="HANI CUT｜無料のブラウザ動画編集ツール">
+  <meta name="twitter:description" content="ブラウザだけで、動画をつくる。素材を外へ送らずに編集できます。">
+  <meta name="twitter:image" content="https://hani.moe/studio/og.png">
+  <title>HANI CUT｜無料のブラウザ動画編集ツール</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="hani.moeへ戻る"><span class="brand-mark" aria-hidden="true"><i></i><i></i></span><span>HANI <b>CUT</b></span></a>
+      <div class="project-title-wrap"><span class="save-state"><i></i> この端末に自動保存</span><input id="projectName" class="project-title" type="text" value="HANI CUT 基本ガイド" maxlength="40" aria-label="プロジェクト名"></div>
+      <div class="top-actions">
+        <button class="icon-button" id="undoButton" type="button" aria-label="元に戻す" title="元に戻す" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 6 6v1"/></svg></button>
+        <button class="icon-button" id="redoButton" type="button" aria-label="やり直す" title="やり直す" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 14 5-5-5-5m5 5H10a6 6 0 0 0-6 6v1"/></svg></button>
+        <span class="local-pill"><i></i> 端末内で処理</span>
+        <button class="export-button" id="exportButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>書き出す</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="media-panel panel">
+        <div class="panel-tabs" role="tablist" aria-label="素材パネル">
+          <button class="panel-tab is-active" type="button" role="tab" aria-selected="true" data-panel="media"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 15 5-5 4 4 2-2 7 6"/></svg>素材</button>
+          <button class="panel-tab" type="button" role="tab" aria-selected="false" data-panel="text"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14M12 5v14M8 19h8"/></svg>テキスト</button>
+          <button class="panel-tab" type="button" role="tab" aria-selected="false" data-panel="sound"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l10-2v13M9 9l10-2M6 21c-2 0-3-1-3-2.5S4 16 6 16s3 1 3 2.5S8 21 6 21Zm10-2c-2 0-3-1-3-2.5s1-2.5 3-2.5 3 1 3 2.5S18 19 16 19Z"/></svg>音声</button>
+        </div>
+
+        <section class="panel-view is-active" id="mediaPanel" data-view="media">
+          <div class="panel-heading"><div><span class="eyebrow">PROJECT MEDIA</span><h1>素材</h1></div><button class="small-icon-button" type="button" aria-label="素材メニュー"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button></div>
+          <label class="import-zone" id="importZone" for="mediaInput"><input id="mediaInput" type="file" accept="video/*,image/*,audio/*" multiple><span class="import-icon"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L8 8m4-4 4 4M5 14v5h14v-5"/></svg></span><strong>素材を選ぶ</strong><small>またはここにドロップ</small></label>
+          <div class="media-summary"><span>このプロジェクト</span><span id="assetCount">2個</span></div>
+          <div class="asset-grid" id="assetGrid">
+            <button class="asset-card" type="button" data-sample="video" draggable="true"><span class="asset-thumb thumb-orange"><i class="duration-badge">0:29</i><i class="asset-kind">VIDEO</i></span><span class="asset-name">HANI-CUTの使い方.webm</span><span class="asset-meta">1280 × 720</span></button>
+            <button class="asset-card" type="button" data-sample="image" draggable="true"><span class="asset-thumb thumb-sky"><i class="asset-kind">IMAGE</i></span><span class="asset-name">サンプル画像.jpg</span><span class="asset-meta">1920 × 1080</span></button>
+          </div>
+          <p class="drop-note">素材はアップロードされません。すべての編集は、このブラウザの中だけで行われます。</p>
+        </section>
+
+        <section class="panel-view" id="textPanel" data-view="text" hidden>
+          <div class="panel-heading"><div><span class="eyebrow">TEXT</span><h1>テキスト</h1></div></div>
+          <button class="add-text-button" id="addTextButton" type="button"><span>＋</span> テキストを追加</button>
+          <p class="section-label">スタイル</p>
+          <div class="text-presets"><button type="button" data-preset="title"><b>大きなタイトル</b><small>Bold / 64px</small></button><button type="button" data-preset="subtitle"><b>シンプル字幕</b><small>Medium / 32px</small></button><button type="button" data-preset="label"><b>ラベル</b><small>Mono / 24px</small></button></div>
+        </section>
+
+        <section class="panel-view" id="soundPanel" data-view="sound" hidden>
+          <div class="panel-heading"><div><span class="eyebrow">AUDIO</span><h1>音声</h1></div></div>
+          <label class="add-text-button" for="audioInput"><input id="audioInput" type="file" accept="audio/*"><span>＋</span> BGMを追加</label>
+          <div class="sound-tip"><span>♪</span><p><b>BGMをタイムラインへ</b><small>音源を読み込むと、動画の下に音声トラックとして追加されます。</small></p></div>
+        </section>
+      </aside>
+
+      <section class="stage-panel">
+        <div class="stage-toolbar">
+          <div class="canvas-size-control"><button id="ratioButton" type="button"><span class="ratio-icon"></span><span id="ratioLabel">16:9</span><svg viewBox="0 0 24 24"><path d="m8 10 4 4 4-4"/></svg></button><div class="ratio-menu" id="ratioMenu" hidden><button type="button" data-ratio="16:9">横長 <span>16:9</span></button><button type="button" data-ratio="9:16">縦長 <span>9:16</span></button><button type="button" data-ratio="1:1">正方形 <span>1:1</span></button><button type="button" data-ratio="4:5">ポートレート <span>4:5</span></button></div></div>
+          <div class="stage-zoom"><button id="zoomOut" type="button" aria-label="縮小">−</button><span id="zoomLabel">66%</span><button id="zoomIn" type="button" aria-label="拡大">＋</button></div>
+        </div>
+        <div class="canvas-wrap"><div class="preview-canvas ratio-16-9" id="previewCanvas" tabindex="0" aria-label="動画プレビュー"><canvas id="renderCanvas" width="1280" height="720"></canvas><div class="selection-frame" id="selectionFrame" hidden><i></i><i></i><i></i><i></i></div></div></div>
+        <div class="transport" aria-label="再生コントロール">
+          <div class="transport-side"><button class="tool-button" id="splitButton" type="button" title="再生位置で分割"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="m8.5 7.5 10 6M8.5 16.5 19 10M12 12l7 7"/></svg><span>分割</span></button><button class="tool-button" id="deleteButton" type="button" title="選択項目を削除"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6"/></svg><span>削除</span></button></div>
+          <div class="playback-controls"><button id="previousButton" type="button" aria-label="前へ"><svg viewBox="0 0 24 24"><path d="M6 5v14M18 6l-8 6 8 6V6Z"/></svg></button><button class="play-button" id="playButton" type="button" aria-label="再生"><svg id="playIcon" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7V5Z"/></svg></button><button id="nextButton" type="button" aria-label="次へ"><svg viewBox="0 0 24 24"><path d="M18 5v14M6 6l8 6-8 6V6Z"/></svg></button></div>
+          <div class="timecode"><span id="currentTime">00:00.0</span><i>/</i><span id="totalTime">00:16.0</span></div>
+        </div>
+      </section>
+
+      <aside class="inspector-panel panel">
+        <div class="inspector-heading"><span>インスペクタ</span><button class="small-icon-button" type="button" aria-label="インスペクタを閉じる"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button></div>
+        <div class="inspector-empty" id="inspectorEmpty"><span class="empty-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 15l5-5 4 4 2-2 5 5"/></svg></span><b>クリップを選択</b><p>タイムラインの素材を選ぶと、ここで見た目や音量を調整できます。</p></div>
+        <div class="inspector-content" id="inspectorContent" hidden>
+          <section class="inspector-section visual-controls"><div class="section-title"><b id="inspectorTitle">クリップ</b><button id="resetTransform" type="button">リセット</button></div><label class="control-row"><span>拡大</span><input id="scaleControl" type="range" min="50" max="180" value="100"><output id="scaleValue">100%</output></label><div class="two-controls"><label><span>X</span><input id="positionX" type="number" value="0"></label><label><span>Y</span><input id="positionY" type="number" value="0"></label></div><label class="control-row"><span>回転</span><input id="rotationControl" type="range" min="-180" max="180" value="0"><output id="rotationValue">0°</output></label></section>
+          <section class="inspector-section visual-controls"><div class="section-title"><b>見た目</b></div><div class="filter-list" id="filterList"><button class="is-active" type="button" data-filter="none">標準</button><button type="button" data-filter="warm">暖かい</button><button type="button" data-filter="mono">モノクロ</button><button type="button" data-filter="vivid">鮮やか</button></div></section>
+          <section class="inspector-section text-controls" hidden><div class="section-title"><b>文字</b></div><label class="stacked-control"><span>内容</span><textarea id="textContent" rows="3" maxlength="120"></textarea></label><div class="two-controls"><label class="color-field"><span>色</span><input id="textColor" type="color" value="#fff8e9"></label><label><span>大きさ</span><input id="fontSize" type="number" min="16" max="160" value="64"></label></div></section>
+          <section class="inspector-section volume-controls"><div class="section-title"><b>音量</b><output id="volumeValue">100%</output></div><input id="volumeControl" type="range" min="0" max="150" value="100"></section>
+        </div>
+      </aside>
+
+      <section class="timeline-panel">
+        <div class="timeline-topbar"><div class="timeline-tools"><button id="addTrackButton" type="button"><span>＋</span> トラック</button><button class="magnet-button is-active" id="snapButton" type="button" aria-pressed="true" title="スナップ"><svg viewBox="0 0 24 24"><path d="M6 3v8a6 6 0 0 0 12 0V3M6 7h4m4 0h4"/></svg></button></div><div class="timeline-project-meta"><span id="clipCount">3 クリップ</span><i>•</i><span>1280 × 720</span><i>•</i><span>30 fps</span></div><div class="timeline-zoom"><button id="timelineZoomOut" type="button" aria-label="タイムラインを縮小">−</button><input id="timelineZoom" type="range" min="60" max="180" value="100" aria-label="タイムラインの拡大率"><button id="timelineZoomIn" type="button" aria-label="タイムラインを拡大">＋</button></div></div>
+        <div class="timeline-scroll" id="timelineScroll">
+          <div class="track-labels"><div class="ruler-label"></div><div class="track-label"><span class="track-icon">V1</span><b>映像</b><button type="button" aria-label="映像トラックを表示"><svg viewBox="0 0 24 24"><path d="M2 12s3-6 10-6 10 6 10 6-3 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2"/></svg></button></div><div class="track-label"><span class="track-icon">T1</span><b>テキスト</b><button type="button" aria-label="テキストトラックを表示"><svg viewBox="0 0 24 24"><path d="M2 12s3-6 10-6 10 6 10 6-3 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2"/></svg></button></div><div class="track-label"><span class="track-icon">A1</span><b>音声</b><button type="button" aria-label="音声トラックをミュート"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5Zm4 4a4 4 0 0 1 0 6m2-8a7 7 0 0 1 0 10"/></svg></button></div></div>
+          <div class="timeline-content" id="timelineContent"><div class="time-ruler" id="timeRuler"></div><div class="track video-track" id="videoTrack"></div><div class="track text-track" id="textTrack"></div><div class="track audio-track" id="audioTrack"></div><div class="playhead" id="playhead"><span></span></div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+  <div class="export-modal" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportHeading" hidden><div class="modal-backdrop" data-close-modal></div><div class="modal-card"><button class="modal-close" type="button" data-close-modal aria-label="閉じる">×</button><span class="eyebrow">EXPORT VIDEO</span><h2 id="exportHeading">動画を書き出す</h2><p>編集内容をブラウザ内で1本の動画にまとめます。</p><div class="export-settings"><label><span>解像度</span><select id="exportResolution"><option value="720">HD 720p</option><option value="1080">Full HD 1080p</option><option value="480">SD 480p</option></select></label><label><span>フレームレート</span><select id="exportFps"><option value="30">30 fps</option><option value="24">24 fps</option></select></label></div><div class="export-progress" id="exportProgress" hidden><div><i id="exportProgressBar"></i></div><span id="exportProgressText">準備中...</span></div><button class="start-export-button" id="startExportButton" type="button"><span>●</span> WebMで書き出す</button><small>素材はサーバーに送信されません。動画の長さと同じくらいの時間がかかります。</small></div></div>
+  <script src="app.js"></script>
+</body>
+</html>
