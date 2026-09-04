@@ -15,7 +15,6 @@
       <a href="/index.html?src=profile.md">PROFILE</a>
       <a href="/index.html?src=works.md">WORKS</a>
       <a href="/index.html?src=games.md">GAMES</a>
-      <a href="/index.html?src=diary/index.md">DIARY</a>
       <a href="/index.html?src=haifu.md">HAIFU</a>
     </nav>
   </header>
@@ -477,6 +476,11 @@
       const params = new URLSearchParams(location.search);
       const src = cleanMarkdownPath(params.get("src") || "index.md");
       const content = document.getElementById("content");
+
+      if (src === "diary.md" || src.startsWith("diary/")) {
+        location.replace("/");
+        return;
+      }
 
       if (!isSafeMarkdownPath(src)) {
         content.textContent = "読み込めないパスです。";

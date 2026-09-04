@@ -9,6 +9,5 @@ description: "サイト管理者について"
 ## リンク
 
 - [トップへ戻る](index.md)
-- [日記を見る](diary/index.md)
 - [配布物を見る](haifu.md)
 
