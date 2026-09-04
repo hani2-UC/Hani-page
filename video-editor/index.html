@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#11110f">
   <meta name="robots" content="index,follow,max-image-preview:large">
-  <meta name="description" content="HANI CUTは、インストール不要で使える無料のブラウザ動画編集ツール。動画・画像・音声を端末内で処理し、トリミング、分割、字幕、フィルター、WebM書き出しができます。">
+  <meta name="description" content="HANI CUTは、インストール不要で使える無料のブラウザ動画編集ツール。複数レイヤー、キーフレーム風アニメーション、色調補正、クロマキー、60fps書き出しに対応します。">
   <link rel="canonical" href="https://hani.moe/video-editor/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="hani.moe">
@@ -28,18 +28,21 @@
     "@type": "WebApplication",
     "name": "HANI CUT",
     "url": "https://hani.moe/studio/",
-    "description": "インストール不要で使える、端末内処理のブラウザ動画編集ツール。動画・画像・音声の編集、字幕、フィルター、WebM書き出しに対応しています。",
+    "description": "インストール不要で使える、端末内処理のブラウザ動画編集ツール。複数レイヤー、開始点から終了点へのアニメーション、色調補正、クロマキー、字幕、60fpsのWebM書き出し、再編集用プロジェクト保存に対応しています。",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "Web browser",
     "browserRequirements": "JavaScript、Canvas、MediaRecorderに対応したモダンブラウザ",
     "image": "https://hani.moe/studio/og.png",
     "featureList": [
       "動画・画像・音声の読み込み",
-      "タイムライン編集",
+      "複数レイヤーのタイムライン編集",
       "トリミングと分割",
-      "テキストと字幕の追加",
-      "フィルターと音量調整",
-      "WebM動画の書き出し",
+      "開始点から終了点へのキーフレーム風アニメーション",
+      "透明度・合成モード・色調補正・クロマキー",
+      "再生速度・ループ・フェード・音声パン",
+      "縁取り・影・配置に対応したテキストと字幕",
+      "最大60fpsのWebM動画書き出し",
+      "再編集用HANI CUTプロジェクトの保存と読み込み",
       "端末内での素材処理"
     ],
     "offers": {
@@ -111,32 +114,32 @@
         <article>
           <span class="feature-number">02</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h18M3 12h12M3 17h16"/><path d="M7 5v4m6 1v4m4 1v4"/></svg>
-          <h3>タイムライン編集</h3>
-          <p>クリップを再生順に並べ替え、端をドラッグして使いたい長さに整えられます。</p>
+          <h3>複数レイヤーで編集</h3>
+          <p>＋から映像・画像、音声、字幕のトラックを選び、素材を重ねて同時に再生できます。</p>
         </article>
         <article>
           <span class="feature-number">03</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="m8.5 7.5 10 6M8.5 16.5 19 10"/></svg>
           <h3>トリミングと分割</h3>
-          <p>不要な前後を短くしたり、再生位置でクリップを2つに分けたりできます。</p>
+          <p>前後を短くしたり、再生位置で分割・複製したり、再生速度とループを変更できます。</p>
         </article>
         <article>
           <span class="feature-number">04</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14M12 5v14M8 19h8"/></svg>
           <h3>タイトルと字幕</h3>
-          <p>文字の内容、色、大きさ、位置、角度を調整して動画へ重ねられます。</p>
+          <p>フォント、色、縁取り、影、配置、角度を調整して動画へ重ねられます。</p>
         </article>
         <article>
           <span class="feature-number">05</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18V3Z"/></svg>
-          <h3>見た目と音量を調整</h3>
-          <p>暖色・モノクロ・鮮やかなどのフィルターや、素材ごとの音量を変更できます。</p>
+          <h3>動きと見た目を調整</h3>
+          <p>開始から終了への動き、透明度、合成、色調、クロップ、クロマキー、フェードを調整できます。</p>
         </article>
         <article>
           <span class="feature-number">06</span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 17v3h14v-3"/></svg>
-          <h3>WebMで書き出す</h3>
-          <p>HDまたはFull HDを選び、完成した動画をWebMファイルとして保存できます。</p>
+          <h3>保存と60fps書き出し</h3>
+          <p>再編集用の.hanicut形式で作業を保存し、完成動画は最大60fpsのWebMで書き出せます。</p>
         </article>
       </div>
     </section>
@@ -162,8 +165,8 @@
       </div>
       <ol class="step-list">
         <li><span>STEP 01</span><b>素材を追加</b><p>動画、写真、BGMを読み込みます。</p></li>
-        <li><span>STEP 02</span><b>並べて編集</b><p>順番と長さを整え、字幕やフィルターを追加します。</p></li>
-        <li><span>STEP 03</span><b>動画を保存</b><p>プレビューで確認し、WebM形式で書き出します。</p></li>
+        <li><span>STEP 02</span><b>重ねて編集</b><p>複数の画像や音声を重ね、字幕やフィルターを追加します。</p></li>
+        <li><span>STEP 03</span><b>保存・書き出し</b><p>作業は.hanicut、完成動画はWebM形式で保存します。</p></li>
       </ol>
       <a class="primary-button centered" href="/studio/">HANI CUTを開く <span aria-hidden="true">→</span></a>
     </section>
@@ -176,7 +179,7 @@
       <div class="format-columns">
         <div><span>読み込み</span><p>MP4 / WebM / MOV※<br>PNG / JPG / WebP / GIF<br>MP3 / WAV / M4A など</p><small>※ブラウザが再生できるコーデックに限ります。</small></div>
         <div><span>画面比率</span><p>16:9　横長<br>9:16　縦長<br>1:1　正方形<br>4:5　ポートレート</p></div>
-        <div><span>書き出し</span><p>WebM<br>HD 720p / Full HD 1080p<br>24 fps / 30 fps</p></div>
+        <div><span>保存・書き出し</span><p>HANI CUTプロジェクト（.hanicut）<br>WebM / HD・Full HD<br>24 / 30 / 60 fps</p></div>
       </div>
     </section>
 
@@ -189,8 +192,8 @@
         <details><summary>無料で使えますか？ <span>＋</span></summary><p>はい。HANI CUTは無料で利用できます。アカウント登録も必要ありません。</p></details>
         <details><summary>読み込んだ動画はアップロードされますか？ <span>＋</span></summary><p>いいえ。素材の読み込み、編集、一時保存、書き出しは、利用中の端末とブラウザ内で行われます。</p></details>
         <details><summary>スマートフォンでも使えますか？ <span>＋</span></summary><p>画面はスマートフォンにも対応しています。ただし、長い動画や高解像度の書き出しにはパソコンの利用をおすすめします。</p></details>
-        <details><summary>どの形式で保存できますか？ <span>＋</span></summary><p>現在はWebM形式で保存できます。解像度はSD、HD、Full HDから選択できます。</p></details>
-        <details><summary>編集内容は保存されますか？ <span>＋</span></summary><p>編集内容と読み込んだ素材は、この端末のブラウザ内へ自動保存されます。別の端末やブラウザとは共有されません。</p></details>
+        <details><summary>どの形式で保存できますか？ <span>＋</span></summary><p>完成動画はWebM形式、再編集用の作業データは.hanicut形式で保存できます。WebMはSD、HD、Full HDと24・30・60fpsから選べます。旧.komaprojectと.haniprojectも引き続き開けます。</p></details>
+        <details><summary>編集内容は保存されますか？ <span>＋</span></summary><p>ブラウザ内へ自動保存されるほか、「作業を保存」で素材を含む.hanicutファイルをダウンロードできます。「作業を開く」から読み込めば編集を再開できます。</p></details>
       </div>
     </section>
 
