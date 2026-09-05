@@ -2010,7 +2010,7 @@ async function downloadProjectData() {
     const payload = {
       format: "HANI_CUT_PROJECT",
       version: 1,
-      appVersion: 5,
+      appVersion: 6,
       name: $("#projectName").value || "HANI CUT プロジェクト",
       savedAt: new Date().toISOString(),
       project: projectSnapshot(),
@@ -2310,12 +2310,26 @@ function setupEvents() {
     const start = clamp((event.clientX - rect.left) / rect.width, 0, 1) * state.duration;
     addAssetToTimeline(assetId, { start, lane });
   });
-  timeline.addEventListener("contextmenu", (event) => {
+  // 公開環境で後から追加されるスクリプトより先に右クリックを受け取る。
+  // 対象外では何もしないため、通常のブラウザメニューはそのまま使える。
+  document.addEventListener("contextmenu", (event) => {
+    const trackLabel = event.target.closest("#trackLabels .track-label");
     const clipElement = event.target.closest(".timeline-clip");
     const trackElement = event.target.closest(".track");
     const rulerElement = event.target.closest(".time-ruler, .playhead");
-    if (!clipElement && !trackElement && !rulerElement) return;
+    const isTimelineTarget = Boolean(event.target.closest("#timelineContent"));
+    if (!trackLabel && (!isTimelineTarget || (!clipElement && !trackElement && !rulerElement))) return;
     event.preventDefault();
+    event.stopPropagation();
+    if (trackLabel) {
+      const kind = trackLabel.dataset.track;
+      const label = kind === "video" ? "映像・画像" : kind === "audio" ? "音声" : "字幕";
+      const lane = Number(trackLabel.dataset.lane) + 1;
+      openContextMenu(`${kind === "video" ? "V" : kind === "audio" ? "A" : "T"}${lane} ${label}トラック`, [
+        { label: "同じ種類のトラックを追加", icon: "＋", action: () => addTimelineTrack(kind) }
+      ], event, trackLabel);
+      return;
+    }
     const contextTime = event.clientX ? timelineTimeFromClientX(event.clientX) : state.time;
     if (clipElement) {
       selectItem(clipElement.dataset.id);
@@ -2356,19 +2370,7 @@ function setupEvents() {
     if (kind === "text") items.push({ label: "ここに字幕を追加", icon: "T", action: () => { setCurrentTime(contextTime); addText("subtitle"); } });
     items.push({ separator: true }, { label: `${label}トラックを追加`, icon: "＋", action: () => addTimelineTrack(kind) });
     openContextMenu(`${kind === "video" ? "V" : kind === "audio" ? "A" : "T"}${lane} ${label}トラック`, items, event, trackElement);
-  });
-
-  $("#trackLabels").addEventListener("contextmenu", (event) => {
-    const trackLabel = event.target.closest(".track-label");
-    if (!trackLabel) return;
-    event.preventDefault();
-    const kind = trackLabel.dataset.track;
-    const label = kind === "video" ? "映像・画像" : kind === "audio" ? "音声" : "字幕";
-    const lane = Number(trackLabel.dataset.lane) + 1;
-    openContextMenu(`${kind === "video" ? "V" : kind === "audio" ? "A" : "T"}${lane} ${label}トラック`, [
-      { label: "同じ種類のトラックを追加", icon: "＋", action: () => addTimelineTrack(kind) }
-    ], event, trackLabel);
-  });
+  }, { capture: true });
 
   $("#snapButton").addEventListener("click", (event) => {
     const active = event.currentTarget.classList.toggle("is-active");
