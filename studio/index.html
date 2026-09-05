@@ -21,7 +21,7 @@
   <meta name="twitter:description" content="ブラウザだけで、動画をつくる。素材を外へ送らずに編集できます。">
   <meta name="twitter:image" content="https://hani.moe/studio/og.png">
   <title>HANI CUT｜無料のブラウザ動画編集ツール</title>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
   <div class="app-shell">
@@ -114,6 +114,6 @@
   <div class="timeline-context-menu" id="contextMenu" role="menu" aria-label="タイムライン操作" hidden></div>
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
   <div class="export-modal" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportHeading" hidden><div class="modal-backdrop" data-close-modal></div><div class="modal-card"><button class="modal-close" type="button" data-close-modal aria-label="閉じる">×</button><span class="eyebrow">EXPORT VIDEO</span><h2 id="exportHeading">動画を書き出す</h2><p>編集内容をブラウザ内で1本の動画にまとめます。</p><div class="export-settings"><label><span>解像度</span><select id="exportResolution"><option value="720">HD 720p</option><option value="1080">Full HD 1080p</option><option value="480">SD 480p</option></select></label><label><span>フレームレート</span><select id="exportFps"><option value="60">60 fps</option><option value="30" selected>30 fps</option><option value="24">24 fps</option></select></label></div><div class="export-progress" id="exportProgress" hidden><div><i id="exportProgressBar"></i></div><span id="exportProgressText">準備中...</span></div><button class="start-export-button" id="startExportButton" type="button"><span>●</span> WebMで書き出す</button><small>60fpsは端末性能により負荷が高くなります。素材はサーバーへ送信されません。</small></div></div>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

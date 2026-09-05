@@ -77,6 +77,7 @@ let toastTimer = 0;
 let saveTimer = 0;
 let databasePromise = null;
 let draggedClipId = null;
+let timelineDrag = null;
 let audioGraph = null;
 let contextMenuReturnFocus = null;
 const mediaInstances = new Map();
@@ -476,12 +477,15 @@ function timelineClipElement(item, track) {
   element.draggable = true;
   element.addEventListener("dragstart", (event) => {
     draggedClipId = item.id;
+    timelineDrag = { item, track, offset: (event.clientX - element.getBoundingClientRect().left) / $("#timelineContent").getBoundingClientRect().width * state.duration };
     event.dataTransfer.setData("text/hani-item", item.id);
     event.dataTransfer.setData("text/hani-track", track);
     event.dataTransfer.effectAllowed = "move";
   });
   element.addEventListener("dragend", () => {
     draggedClipId = null;
+    timelineDrag = null;
+    $("#timelineDropPreview")?.remove();
     $$(".track.is-drop-target").forEach((trackElement) => trackElement.classList.remove("is-drop-target"));
   });
   leftHandle.addEventListener("pointerdown", (event) => beginTrim(event, item, track, "left"));
@@ -628,6 +632,7 @@ function beginPlayheadDrag(event) {
 }
 
 function beginTrim(event, item, track, edge) {
+  if (event.button !== 0 || state.exporting) return;
   event.preventDefault();
   event.stopPropagation();
   const startX = event.clientX;
@@ -644,10 +649,12 @@ function beginTrim(event, item, track, edge) {
   const move = (moveEvent) => {
     const delta = (moveEvent.clientX - startX) / pixels * originalTotal;
     if (edge === "right") {
-      item.duration = clamp(original.duration + delta, .5, maxDuration);
+      const endTime = snapTimelinePosition(original.start + original.duration + delta, item.id, 0, moveEvent.altKey).time;
+      item.duration = clamp(endTime - original.start, .5, maxDuration);
     } else {
       const lowerBound = trimsSource && !item.loop ? Math.max(-original.start, -original.trimStart / speed) : -original.start;
-      const allowed = clamp(delta, lowerBound, original.duration - .5);
+      const startTime = snapTimelinePosition(original.start + delta, item.id, 0, moveEvent.altKey).time;
+      const allowed = clamp(startTime - original.start, lowerBound, original.duration - .5);
       item.start = original.start + allowed;
       item.duration = original.duration - allowed;
       if (trimsSource) item.trimStart = item.loop && source.duration > 0
@@ -699,6 +706,7 @@ function renderInspector() {
   if (!selected) return;
 
   const { item, track } = selected;
+  renderPlacementControls(item, track);
   ensureItemDefaults(item, track);
   const asset = assets.get(item.assetId);
   const visual = track !== "audio";
@@ -1405,8 +1413,85 @@ function findAvailableLane(items, start, duration, firstLane = 0) {
 }
 
 function snappedTime(value) {
+  return snapTimelinePosition(value).time;
+}
+
+function snapTimelinePosition(value, excludedId = null, duration = 0, bypass = false) {
   const safe = Math.max(0, value);
-  return $("#snapButton")?.classList.contains("is-active") ? Math.round(safe * 2) / 2 : safe;
+  if (bypass || !$("#snapButton")?.classList.contains("is-active")) return { time: safe, point: null };
+  const width = $("#timelineContent").getBoundingClientRect().width || 1000;
+  let distance = 10 / width * state.duration;
+  const points = [0, state.time, ...[...state.clips, ...state.texts, ...state.audios]
+    .filter((item) => item.id !== excludedId).flatMap((item) => [item.start, item.start + item.duration])];
+  let result = { time: safe, point: null };
+  for (const point of points) for (const offset of duration ? [0, duration] : [0]) {
+    const target = point - offset;
+    if (target >= 0 && Math.abs(target - safe) < distance) {
+      distance = Math.abs(target - safe);
+      result = { time: target, point };
+    }
+  }
+  return result;
+}
+
+function placeSelected(start, lane) {
+  const selected = selectedItem();
+  if (!selected || state.exporting || !Number.isFinite(start)) return;
+  if (Math.abs(selected.item.start - Math.max(0, start)) < .000001 && selected.item.lane === lane) return;
+  pushHistory();
+  selected.item.start = Math.max(0, start);
+  selected.item.lane = lane;
+  normalizeTimeline();
+  renderAll();
+  updateMediaPlayback();
+  queueSave();
+}
+
+function renderPlacementControls(item, track) {
+  let section = $("#placementControls");
+  if (!section) {
+    section = document.createElement("section");
+    section.id = "placementControls";
+    section.className = "inspector-section";
+    $("#inspectorContent").prepend(section);
+  }
+  section.replaceChildren();
+  const hint = document.createElement("p");
+  hint.textContent = "横ドラッグで時間移動。Shift＋ドラッグでトラック変更、Altで吸着を一時解除。";
+  section.append(hint);
+  const label = document.createElement("label");
+  label.textContent = "配置トラック ";
+  const select = document.createElement("select");
+  select.setAttribute("aria-label", "配置トラック");
+  const count = track === "video" ? state.visualLanes : track === "audio" ? state.audioLanes : state.textLanes;
+  for (let lane = 0; lane < count; lane++) {
+    const option = document.createElement("option");
+    option.value = lane;
+    option.textContent = `${track === "video" ? "V" : track === "audio" ? "A" : "T"}${lane + 1}`;
+    option.selected = lane === (item.lane || 0);
+    select.append(option);
+  }
+  select.addEventListener("change", () => placeSelected(item.start, Number(select.value)));
+  label.append(select);
+  section.append(label);
+  const buttons = document.createElement("div");
+  buttons.className = "placement-buttons";
+  const siblings = (track === "video" ? state.clips : track === "audio" ? state.audios : state.texts)
+    .filter((entry) => entry.id !== item.id && entry.lane === item.lane && entry.start + entry.duration <= item.start + .001);
+  for (const [title, action] of [
+    ["1/60秒前へ", () => placeSelected(item.start - 1 / 60, item.lane)],
+    ["1/60秒後へ", () => placeSelected(item.start + 1 / 60, item.lane)],
+    ["先頭へ", () => placeSelected(0, item.lane)],
+    ["再生位置へ", () => placeSelected(state.time, item.lane)],
+    ["前のクリップに詰める", () => placeSelected(Math.max(0, ...siblings.map((entry) => entry.start + entry.duration)), item.lane)]
+  ]) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = title;
+    button.addEventListener("click", action);
+    buttons.append(button);
+  }
+  section.append(buttons);
 }
 
 function addAssetToTimeline(assetId, placement = {}) {
@@ -1620,7 +1705,7 @@ function jumpToBoundary(direction) {
   setCurrentTime(target ?? (direction < 0 ? 0 : state.duration));
 }
 
-function moveTimelineItem(itemId, clientX, targetTrack, targetLane, trackElement) {
+function moveTimelineItem(itemId, clientX, targetTrack, targetLane, trackElement, bypassSnap = false) {
   const selected = [
     { track: "video", items: state.clips },
     { track: "text", items: state.texts },
@@ -1629,11 +1714,12 @@ function moveTimelineItem(itemId, clientX, targetTrack, targetLane, trackElement
   if (!selected || selected.track !== targetTrack) return showToast("同じ種類のトラックへ移動してください");
   const item = selected.items.find((entry) => entry.id === itemId);
   const rect = trackElement.getBoundingClientRect();
-  const targetTime = snappedTime(clamp((clientX - rect.left) / rect.width, 0, 1) * state.duration);
+  const targetTime = snapTimelinePosition((clientX - rect.left) / rect.width * state.duration - (timelineDrag?.offset || 0), item.id, item.duration, bypassSnap).time;
   pushHistory();
   item.start = targetTime;
   const requestedLane = Math.max(0, Number(targetLane) || 0);
-  item.lane = findAvailableLane(selected.items.filter((entry) => entry.id !== item.id), item.start, item.duration, requestedLane);
+  item.lane = requestedLane;
+  state.selectedId = item.id;
   if (selected.track === "video") state.visualLanes = Math.max(state.visualLanes, item.lane + 1);
   if (selected.track === "text") state.textLanes = Math.max(state.textLanes, item.lane + 1);
   if (selected.track === "audio") state.audioLanes = Math.max(state.audioLanes, item.lane + 1);
@@ -2010,7 +2096,7 @@ async function downloadProjectData() {
     const payload = {
       format: "HANI_CUT_PROJECT",
       version: 1,
-      appVersion: 6,
+      appVersion: 7,
       name: $("#projectName").value || "HANI CUT プロジェクト",
       savedAt: new Date().toISOString(),
       project: projectSnapshot(),
@@ -2280,17 +2366,33 @@ function setupEvents() {
     setCurrentTime((event.clientX - rect.left) / rect.width * state.duration);
   });
   timeline.addEventListener("dragover", (event) => {
-    const targetTrack = event.target.closest(".track");
+    const targetTrack = timelineDrag && !event.shiftKey
+      ? timeline.querySelector(`.track[data-track="${timelineDrag.track}"][data-lane="${timelineDrag.item.lane || 0}"]`)
+      : event.target.closest(".track");
     if (!targetTrack) return;
+    if (timelineDrag && targetTrack.dataset.track !== timelineDrag.track) return;
     event.preventDefault();
     event.dataTransfer.dropEffect = draggedClipId ? "move" : "copy";
     $$(".track.is-drop-target").forEach((element) => element.classList.toggle("is-drop-target", element === targetTrack));
+    targetTrack.classList.add("is-drop-target");
+    if (timelineDrag) {
+      const rect = targetTrack.getBoundingClientRect();
+      const snap = snapTimelinePosition((event.clientX - rect.left) / rect.width * state.duration - timelineDrag.offset, timelineDrag.item.id, timelineDrag.item.duration, event.altKey);
+      let preview = $("#timelineDropPreview");
+      if (!preview) { preview = document.createElement("div"); preview.id = "timelineDropPreview"; }
+      targetTrack.append(preview);
+      preview.style.left = `${snap.time / state.duration * 100}%`;
+      preview.style.width = `${timelineDrag.item.duration / state.duration * 100}%`;
+      preview.textContent = `${formatTime(snap.time, true)}${snap.point !== null ? " · 吸着" : ""}`;
+    }
   });
   timeline.addEventListener("dragleave", (event) => {
     if (!timeline.contains(event.relatedTarget)) $$(".track.is-drop-target").forEach((element) => element.classList.remove("is-drop-target"));
   });
   timeline.addEventListener("drop", (event) => {
-    const targetTrack = event.target.closest(".track");
+    const targetTrack = timelineDrag && !event.shiftKey
+      ? timeline.querySelector(`.track[data-track="${timelineDrag.track}"][data-lane="${timelineDrag.item.lane || 0}"]`)
+      : event.target.closest(".track");
     if (!targetTrack) return;
     event.preventDefault();
     $$(".track.is-drop-target").forEach((element) => element.classList.remove("is-drop-target"));
@@ -2299,7 +2401,9 @@ function setupEvents() {
     const trackType = targetTrack.dataset.track;
     const lane = Number(targetTrack.dataset.lane) || 0;
     if (itemId) {
-      moveTimelineItem(itemId, event.clientX, trackType, lane, targetTrack);
+      moveTimelineItem(itemId, event.clientX, trackType, lane, targetTrack, event.altKey);
+      timelineDrag = null;
+      draggedClipId = null;
       return;
     }
     const asset = assets.get(assetId);

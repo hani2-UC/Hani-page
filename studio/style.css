@@ -110,6 +110,13 @@ svg{display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:
 .color-controls .control-row{grid-template-columns:54px 1fr 34px}
 
 /* Context-sensitive timeline menu */
+#timelineDropPreview{position:absolute;top:2px;bottom:2px;z-index:20;pointer-events:none;box-sizing:border-box;border:2px solid var(--mint);border-radius:5px;background:rgba(133,212,178,.2);color:var(--ink);padding:5px;font-size:10px;white-space:nowrap}
+#placementControls{padding:12px;border-bottom:1px solid var(--line);font-size:11px;color:var(--muted)}
+#placementControls p{line-height:1.6;margin:0 0 10px}
+#placementControls select{background:var(--raised);color:var(--ink);border:1px solid var(--line);padding:5px;border-radius:4px}
+.placement-buttons{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.placement-buttons button{padding:7px;color:var(--ink);background:var(--raised);border:1px solid var(--line);border-radius:4px;font-size:11px;cursor:pointer}
+.placement-buttons button:hover{border-color:var(--mint)}
 .timeline-context-menu{position:fixed;z-index:260;width:min(232px,calc(100vw - 16px));padding:6px;color:var(--ink);background:#24231e;border:1px solid var(--line-bright);border-radius:9px;box-shadow:0 18px 48px rgba(0,0,0,.5)}
 .context-menu-heading{margin:0;padding:7px 9px 6px;color:var(--faint);font-size:9px;font-weight:900;letter-spacing:.08em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .context-menu-separator{height:1px;margin:5px 4px;background:var(--line)}
