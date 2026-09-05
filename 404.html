@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>404 - hani.moe</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .error-page {
+      max-width: 760px;
+    }
+
+    .error-window {
+      border: 2px solid #202020;
+      background: #c0c0c0;
+      box-shadow:
+        inset 1px 1px #ffffff,
+        inset -1px -1px #808080,
+        5px 5px 0 rgba(0, 0, 0, 0.14);
+      font-family: Tahoma, "MS UI Gothic", "Meiryo", sans-serif;
+      line-height: 1.6;
+    }
+
+    .error-titlebar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 34px;
+      padding: 4px 7px;
+      color: #ffffff;
+      background: linear-gradient(90deg, #000080, #1084d0);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .error-close {
+      display: grid;
+      place-items: center;
+      width: 23px;
+      height: 23px;
+      flex: 0 0 auto;
+      border: 1px solid #202020;
+      background: #c0c0c0;
+      color: #202020;
+      box-shadow:
+        inset 1px 1px #ffffff,
+        inset -1px -1px #808080;
+      font-size: 1rem;
+      line-height: 1;
+    }
+
+    .error-body {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 20px;
+      padding: 28px;
+    }
+
+    .error-icon {
+      display: grid;
+      place-items: center;
+      width: 54px;
+      height: 54px;
+      margin-top: 2px;
+      border-radius: 50%;
+      background: #d60000;
+      color: #ffffff;
+      box-shadow: inset -3px -3px 0 #8d0000;
+      font-family: Arial, sans-serif;
+      font-size: 2.25rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .error-message h1 {
+      margin: 0 0 12px;
+      padding: 0;
+      border: 0;
+      font-size: clamp(1.35rem, 4vw, 1.8rem);
+    }
+
+    .error-message p {
+      margin: 0 0 14px;
+    }
+
+    .error-path {
+      padding: 7px 9px;
+      overflow-wrap: anywhere;
+      border: 1px inset #d8d8d8;
+      background: #ffffff;
+      color: #333333;
+      font-family: Consolas, "MS Gothic", monospace;
+      font-size: 0.86rem;
+    }
+
+    .error-help {
+      margin: 18px 0 0;
+      padding: 12px 14px;
+      border: 1px solid #808080;
+      background: #eeeeee;
+    }
+
+    .error-help summary {
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .error-help ul {
+      margin-bottom: 0;
+      padding-left: 1.4em;
+    }
+
+    .error-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 0 28px 24px;
+    }
+
+    .error-button {
+      min-width: 120px;
+      padding: 7px 14px;
+      border: 1px solid #202020;
+      background: #c0c0c0;
+      color: #111111;
+      box-shadow:
+        inset 1px 1px #ffffff,
+        inset -1px -1px #808080;
+      text-align: center;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .error-button:hover,
+    .error-button:focus-visible {
+      background: #d8d8d8;
+      outline: 1px dotted #111111;
+      outline-offset: -5px;
+    }
+
+    .error-code {
+      margin: 18px 0 0;
+      color: var(--muted);
+      text-align: center;
+      font-family: Consolas, "MS Gothic", monospace;
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 560px) {
+      .error-body {
+        grid-template-columns: 1fr;
+        padding: 22px;
+      }
+
+      .error-icon {
+        width: 46px;
+        height: 46px;
+        font-size: 1.9rem;
+      }
+
+      .error-actions {
+        padding: 0 22px 22px;
+      }
+
+      .error-button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-title">hani.moe</div>
+    <nav aria-label="メインメニュー">
+      <a href="/index.html?src=index.md">TOP</a>
+      <a href="/index.html?src=profile.md">PROFILE</a>
+      <a href="/index.html?src=works.md">WORKS</a>
+      <a href="/index.html?src=games.md">GAMES</a>
+      <a href="/index.html?src=diary/index.md">DIARY</a>
+      <a href="/index.html?src=haifu.md">HAIFU</a>
+    </nav>
+  </header>
+
+  <main class="content-box error-page">
+    <section class="error-window" aria-labelledby="error-heading">
+      <div class="error-titlebar">
+        <span>hani.moe - ページエラー</span>
+        <span class="error-close" aria-hidden="true">×</span>
+      </div>
+
+      <div class="error-body">
+        <div class="error-icon" aria-hidden="true">×</div>
+        <div class="error-message">
+          <h1 id="error-heading">このページを表示できません</h1>
+          <p>お探しのページは移動したか、まだ作られていないようです。</p>
+          <p class="error-path"><span id="requested-path">404</span></p>
+
+          <details class="error-help">
+            <summary>トラブルシューティング</summary>
+            <ul>
+              <li>アドレスの入力を確認する</li>
+              <li>トップページから目的のページを探す</li>
+              <li>ゲーム置き場で少し遊んでから考える</li>
+            </ul>
+          </details>
+        </div>
+      </div>
+
+      <div class="error-actions">
+        <a class="error-button" href="/index.html?src=index.md">トップへ戻る</a>
+        <a class="error-button" href="/index.html?src=games.md">ゲーム置き場へ</a>
+      </div>
+    </section>
+
+    <p class="error-code">HTTP 404 / LOST_IN_HANI_MOE</p>
+  </main>
+
+  <footer class="site-footer">
+    <a href="/index.html?src=index.md">hani.moe</a>
+  </footer>
+
+  <script>
+    document.getElementById("requested-path").textContent = location.pathname;
+  </script>
+</body>
+</html>
