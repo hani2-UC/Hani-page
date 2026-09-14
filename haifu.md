@@ -17,19 +17,20 @@ Windows 11上で、少し昔のWindows風の雰囲気を楽しむためのブラ
 
 <a class="download-button" href="https://github.com/hani2-UC/Hani-page/releases/latest/download/HaniClassicBrowserSetup.1.exe">Hani Classic Browser をダウンロード</a>
 
-## Bitcoin CPU Miner
+## Universal Bitcoin Miner
 
-Bitcoin Core の RPC を使う、regtest／testnet 学習用のCPUマイナーです。
-mainnetでの採掘は専用ASICが前提で、一般的なPCでは採算が合いません。
+BitcoinプールのStratum V1に接続できる、汎用バックエンド構成のマイナーです。
+現在はCPUバックエンドを搭載し、CUDA／OpenCLは検証済みカーネルを追加するまで無効化しています。
 
 | 項目 | 内容 |
 |---|---|
-| 名前 | Bitcoin CPU Miner |
-| 形式 | Pythonスクリプト＋README |
-| 用途 | Bitcoin Core の regtest／testnet 実験・学習 |
+| 名前 | Universal Bitcoin Miner |
+| 形式 | Pythonスクリプト＋詳細README |
+| 用途 | Stratum V1プール接続・バックエンド開発・学習 |
 
-<a class="download-button" href="downloads/bitcoin-miner/bitcoin_miner.py" download>bitcoin_miner.py をダウンロード</a>
-<a class="download-button" href="downloads/bitcoin-miner/README.md" download>README.md をダウンロード</a>
+<a class="download-button" href="downloads/universal-miner/universal_miner.py" download>universal_miner.py をダウンロード</a>
+<a class="download-button" href="downloads/universal-miner/README.md" download>詳細READMEをダウンロード</a>
+<a class="download-button" href="https://github.com/hani2-UC/Hani-page/tree/main/downloads/universal-miner">GitHubで詳細を見る</a>
 
 ---
 
