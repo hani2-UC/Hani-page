@@ -597,7 +597,7 @@
       if (!canvas || !resetButton || !menuToggle || !menuPanel) return;
 
       const ctx = canvas.getContext("2d");
-      const columns = 10;
+      const columns = 11;
       const rows = 8;
       const digits = {
         "0": [[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[2,2],[0,3],[2,3],[0,4],[1,4],[2,4]],
@@ -652,7 +652,7 @@
       }
 
       function arrangeGrid(immediate = false) {
-        const stepX = Math.min(78, Math.max(38, (width - 88) / (columns - 1)));
+        const stepX = Math.min(78, Math.max(24, (width - 42) / (columns - 1)));
         const stepY = Math.min(64, Math.max(42, (height - 170) / (rows + 1)));
         const originX = (width - stepX * (columns - 1)) / 2;
         const originY = Math.max(72, Math.min(140, height * .16));
@@ -671,18 +671,34 @@
       function clockTargets() {
         const now = new Date();
         const text = [now.getHours(), now.getMinutes(), now.getSeconds()].map(value => String(value).padStart(2, "0")).join(":");
-        const cell = Math.max(11, Math.min(31, (width - 34) / 28, (height - 54) / 6));
-        const cells = [];
-        let cursor = 0;
-        for (const char of text) {
-          const shape = digits[char];
-          shape.forEach(([x, y]) => cells.push([cursor + x, y]));
-          cursor += char === ":" ? 2 : 4;
-        }
-        const usedWidth = Math.max(1, cursor - 1) * cell;
-        const startX = (width - usedWidth) / 2 + cell / 2;
-        const startY = Math.max(28, Math.min(height - 5 * cell - 28, (height - 5 * cell) / 2));
-        return cells.map(([x, y]) => ({ x: startX + x * cell, y: startY + y * cell, size: Math.max(11, Math.min(34, cell * .78)) }));
+        const blockSize = Math.max(24, Math.min(42, width / 28));
+        // Keep the clock made from the same full-size blocks as the opening
+        // grid. Narrow displays split the time across lines instead of making
+        // a second, tiny kind of block.
+        const lines = width >= 1168
+          ? [text]
+          : width >= 640
+            ? [text.slice(0, 5), text.slice(6, 8)]
+            : [text.slice(0, 2), text.slice(3, 5), text.slice(6, 8)];
+        const cursorWidth = line => [...line].reduce((sum, char) => sum + (char === ":" ? 2 : 4), 0);
+        const widest = Math.max(...lines.map(line => Math.max(1, cursorWidth(line) - 1)));
+        const cell = Math.max(blockSize, Math.min(blockSize * 1.12, (width - 32) / widest));
+        const rowHeight = 5 * cell;
+        const lineGap = blockSize * 1.3;
+        const totalHeight = lines.length * rowHeight + (lines.length - 1) * lineGap;
+        const startY = Math.max(28, Math.min(height - totalHeight - 28, (height - totalHeight) / 2));
+        const targets = [];
+        lines.forEach((line, lineIndex) => {
+          const usedWidth = Math.max(1, cursorWidth(line) - 1) * cell;
+          const startX = (width - usedWidth) / 2 + cell / 2;
+          let cursor = 0;
+          for (const char of line) {
+            const shape = digits[char];
+            shape.forEach(([x, y]) => targets.push({ x: startX + (cursor + x) * cell, y: startY + lineIndex * (rowHeight + lineGap) + y * cell }));
+            cursor += char === ":" ? 2 : 4;
+          }
+        });
+        return targets;
       }
 
       function arrangeClock(immediate = false) {
@@ -693,10 +709,10 @@
           block.released = false;
           block.pinned = false;
           block.restoreAt = 0;
+          block.layoutSize = null;
           if (!target) return;
           block.homeX = target.x;
           block.homeY = target.y;
-          block.layoutSize = target.size;
           if (immediate) { block.x = target.x; block.y = target.y; block.vx = block.vy = 0; }
         });
       }
