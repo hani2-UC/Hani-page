@@ -872,6 +872,9 @@
           return !block.hidden && !block.released && distance < nearest.distance ? { block, distance } : nearest;
         }, { block: null, distance: 32 }).block;
         if (grabbed) {
+          // A fixed block is released by picking it up again. Ordinary drags
+          // never become fixed merely because the pointer is released.
+          if (grabbed.pinned) grabbed.pinned = false;
           grabbed.holdAt = performance.now() + 300;
           canvas.setPointerCapture(event.pointerId);
         }
@@ -897,12 +900,6 @@
       function release(event) {
         if (grabbed) {
           canvas.releasePointerCapture?.(event.pointerId);
-          if (dragMoved) {
-            grabbed.pinned = true;
-            grabbed.vx = grabbed.vy = 0;
-          } else if (grabbed.pinned) {
-            grabbed.pinned = false;
-          }
         }
         grabbed = null;
         dragStart = null;
