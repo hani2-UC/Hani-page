@@ -614,12 +614,14 @@
       let frame = 0;
       let displayMode = "grid";
       let clockTimer = 0;
+      let dragStart = null;
+      let dragMoved = false;
 
       function build() {
         blocks = Array.from({ length: columns * rows }, (_, index) => {
           const col = Math.floor(index / rows);
           const row = index % rows;
-          return { col, row, homeX: 0, homeY: 0, x: 0, y: 0, vx: 0, vy: 0, blink: Math.random() * 3500, hidden: false, released: false, restoreAt: 0, layoutSize: null };
+          return { col, row, homeX: 0, homeY: 0, x: 0, y: 0, vx: 0, vy: 0, blink: Math.random() * 3500, hidden: false, released: false, pinned: false, restoreAt: 0, layoutSize: null };
         });
         applyLayout(true);
       }
@@ -638,6 +640,7 @@
           block.homeY = originY + block.row * stepY;
           block.hidden = false;
           block.released = false;
+          block.pinned = false;
           block.restoreAt = 0;
           block.layoutSize = null;
           if (immediate) { block.x = block.homeX; block.y = block.homeY; block.vx = block.vy = 0; }
@@ -667,6 +670,7 @@
           const target = targets[index];
           block.hidden = !target;
           block.released = false;
+          block.pinned = false;
           block.restoreAt = 0;
           if (!target) return;
           block.homeX = target.x;
@@ -695,6 +699,7 @@
           const child = blockAt(block.col, row);
           if (!child || child.hidden) continue;
           child.released = true;
+          child.pinned = false;
           child.restoreAt = restoreAt;
           child.vx = (child.x - width / 2) * .015;
           child.vy = -1.5 - (row - block.row) * .35;
@@ -734,6 +739,11 @@
         ctx.restore();
       }
 
+      function blockHalfHeight(block) {
+        const size = block.layoutSize || Math.max(24, Math.min(42, width / 28));
+        return size * .42;
+      }
+
       function tick(time) {
         ctx.clearRect(0, 0, width, height);
         ctx.strokeStyle = "#353535";
@@ -756,7 +766,7 @@
               return;
             }
           }
-          if (block !== grabbed) {
+          if (block !== grabbed && !block.pinned) {
             const parent = displayMode === "grid" && block.row ? blockAt(block.col, block.row - 1) : null;
             const desiredX = block.homeX + (parent ? (parent.x - parent.homeX) * .18 : 0);
             const desiredY = block.homeY + (parent ? (parent.y - parent.homeY) * .18 : 0);
@@ -774,10 +784,10 @@
           const parent = block.row ? blockAt(block.col, block.row - 1) : null;
           if (parent?.released || parent?.hidden) return;
           const fromX = parent ? parent.x : block.homeX;
-          const fromY = parent ? parent.y + Math.max(10, width / 70) : 0;
+          const fromY = parent ? parent.y + blockHalfHeight(parent) : 0;
           ctx.beginPath();
           ctx.moveTo(fromX, fromY);
-          ctx.lineTo(block.x, block.y - Math.max(10, width / 70));
+          ctx.lineTo(block.x, block.y - blockHalfHeight(block));
           ctx.stroke();
         });
         blocks.forEach(block => { if (!block.hidden) drawFace(block, time); });
@@ -791,6 +801,8 @@
 
       canvas.addEventListener("pointerdown", event => {
         const point = pointerPosition(event);
+        dragStart = point;
+        dragMoved = false;
         grabbed = blocks.reduce((nearest, block) => {
           const distance = Math.hypot(point.x - block.x, point.y - block.y);
           return !block.hidden && !block.released && distance < nearest.distance ? { block, distance } : nearest;
@@ -803,7 +815,8 @@
           grabbed.x = point.x;
           grabbed.y = point.y;
           grabbed.vx = grabbed.vy = 0;
-          const releaseDistance = Math.min(400, Math.max(220, width * .24));
+          dragMoved ||= Math.hypot(point.x - dragStart.x, point.y - dragStart.y) > 3;
+          const releaseDistance = Math.min(600, Math.max(300, width * .38));
           if (Math.hypot(point.x - grabbed.homeX, point.y - grabbed.homeY) > releaseDistance) {
             releaseColumnFrom(grabbed);
             canvas.releasePointerCapture?.(event.pointerId);
@@ -814,8 +827,18 @@
         }
       });
       function release(event) {
-        if (grabbed) canvas.releasePointerCapture?.(event.pointerId);
+        if (grabbed) {
+          canvas.releasePointerCapture?.(event.pointerId);
+          if (dragMoved) {
+            grabbed.pinned = true;
+            grabbed.vx = grabbed.vy = 0;
+          } else if (grabbed.pinned) {
+            grabbed.pinned = false;
+          }
+        }
         grabbed = null;
+        dragStart = null;
+        dragMoved = false;
       }
       canvas.addEventListener("pointerup", release);
       canvas.addEventListener("pointercancel", release);
