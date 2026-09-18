@@ -422,25 +422,19 @@
 
     function renderHome() {
       return `
-        <section class="home-playground" aria-labelledby="home-title">
-          <div class="home-intro">
-            <p class="home-kicker">WELCOME TO</p>
+        <section class="home-hal" aria-labelledby="home-title">
+          <div class="hal-wordmark">
+            <p>HANI'S LITTLE LAB</p>
             <h1 id="home-title">hani.moe</h1>
-            <p>作ったもの、日記、ゲーム、配布物。<br>顔のついたブロックは、つかんで動かせます。</p>
           </div>
-          <div class="home-controls" aria-label="ブロックの並び替え">
-            <button type="button" data-home-word="HANI.MOE">ロゴにする</button>
-            <button type="button" data-home-word="HANI">HANI</button>
-            <button type="button" data-home-word="MOE">MOE</button>
-            <button type="button" data-home-word="RESET">もどす</button>
-          </div>
-          <canvas id="hani-blocks" class="hani-blocks" aria-label="ドラッグして遊べる、顔つきブロックのアニメーション"></canvas>
-          <p class="home-drag-note">DRAG THE BLOCKS!</p>
-          <nav class="home-destinations" aria-label="メインコンテンツ">
-            <a href="/index.html?src=works.md"><span>01</span>作ったもの<small>WORKS</small></a>
-            <a href="/video-editor/"><span>02</span>HANI CUT<small>VIDEO EDITOR</small></a>
-            <a href="/index.html?src=games.md"><span>03</span>ゲーム<small>GAMES</small></a>
-            <a href="/index.html?src=haifu.md"><span>04</span>配布物<small>HAIFU</small></a>
+          <button type="button" class="hal-reset" id="hal-reset">ならべる</button>
+          <canvas id="hal-blocks" aria-label="ドラッグして揺らせる、吊り下げられた顔つきブロック"></canvas>
+          <p class="hal-hint">ブロックをつかんで、ひっぱる。</p>
+          <nav class="hal-hangers" aria-label="メインコンテンツ">
+            <a href="/index.html?src=works.md">作ったもの<small>WORKS</small></a>
+            <a href="/video-editor/">HANI CUT<small>VIDEO EDITOR</small></a>
+            <a href="/index.html?src=games.md">ゲーム<small>GAMES</small></a>
+            <a href="/index.html?src=haifu.md">配布物<small>HAIFU</small></a>
           </nav>
         </section>`;
     }
@@ -580,6 +574,148 @@
       resize();
     }
 
+    function initHalBlocks() {
+      const canvas = document.getElementById("hal-blocks");
+      const resetButton = document.getElementById("hal-reset");
+      if (!canvas || !resetButton) return;
+
+      const ctx = canvas.getContext("2d");
+      const columns = 10;
+      const rows = 8;
+      let width = 0;
+      let height = 0;
+      let dpr = 1;
+      let blocks = [];
+      let grabbed = null;
+      let frame = 0;
+
+      function build() {
+        const stepX = Math.min(78, Math.max(38, (width - 88) / (columns - 1)));
+        const stepY = Math.min(64, Math.max(42, (height - 170) / (rows + 1)));
+        const originX = (width - stepX * (columns - 1)) / 2;
+        const originY = Math.max(72, Math.min(140, height * .16));
+        blocks = Array.from({ length: columns * rows }, (_, index) => {
+          const col = Math.floor(index / rows);
+          const row = index % rows;
+          const homeX = originX + col * stepX;
+          const homeY = originY + row * stepY;
+          return { col, row, homeX, homeY, x: homeX, y: homeY, vx: 0, vy: 0, blink: Math.random() * 3500 };
+        });
+      }
+
+      function blockAt(col, row) {
+        return blocks[col * rows + row];
+      }
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        width = rect.width;
+        height = rect.height;
+        canvas.width = Math.round(width * dpr);
+        canvas.height = Math.round(height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        build();
+      }
+
+      function roundRect(x, y, w, h, radius) {
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, radius);
+      }
+
+      function drawFace(block, time) {
+        const size = Math.max(24, Math.min(42, width / 28));
+        const pulling = grabbed === block;
+        const blink = (time + block.blink) % 3600 < 95;
+        ctx.save();
+        ctx.translate(block.x, block.y);
+        roundRect(-size / 2, -size * .42, size, size * .84, Math.max(4, size * .13));
+        ctx.fillStyle = pulling ? "#1ebfac" : "#303030";
+        ctx.fill();
+        ctx.fillStyle = "#f5f5f0";
+        const eyeH = blink ? 2 : size * .12;
+        roundRect(-size * .28, -size * .12, size * .13, eyeH, 2); ctx.fill();
+        roundRect(size * .15, -size * .12, size * .13, eyeH, 2); ctx.fill();
+        roundRect(-size * .12, size * .17, size * .24, pulling ? size * .17 : size * .07, 2); ctx.fill();
+        ctx.restore();
+      }
+
+      function tick(time) {
+        ctx.clearRect(0, 0, width, height);
+        ctx.strokeStyle = "#353535";
+        ctx.lineWidth = 1.5;
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        blocks.forEach(block => {
+          if (block !== grabbed) {
+            const parent = block.row ? blockAt(block.col, block.row - 1) : null;
+            const desiredX = block.homeX + (parent ? (parent.x - parent.homeX) * .18 : 0);
+            const desiredY = block.homeY + (parent ? (parent.y - parent.homeY) * .18 : 0);
+            block.vx += (desiredX - block.x) * .055;
+            block.vy += (desiredY - block.y) * .055;
+            block.vx *= .76;
+            block.vy *= .76;
+            block.x += block.vx;
+            block.y += block.vy;
+          }
+        });
+
+        blocks.forEach(block => {
+          const parent = block.row ? blockAt(block.col, block.row - 1) : null;
+          const fromX = parent ? parent.x : block.homeX;
+          const fromY = parent ? parent.y + Math.max(10, width / 70) : 0;
+          ctx.beginPath();
+          ctx.moveTo(fromX, fromY);
+          ctx.lineTo(block.x, block.y - Math.max(10, width / 70));
+          ctx.stroke();
+        });
+        blocks.forEach(block => drawFace(block, time));
+        if (!reduceMotion) frame = requestAnimationFrame(tick);
+      }
+
+      function pointerPosition(event) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      }
+
+      canvas.addEventListener("pointerdown", event => {
+        const point = pointerPosition(event);
+        grabbed = blocks.reduce((nearest, block) => {
+          const distance = Math.hypot(point.x - block.x, point.y - block.y);
+          return distance < nearest.distance ? { block, distance } : nearest;
+        }, { block: null, distance: 32 }).block;
+        if (grabbed) canvas.setPointerCapture(event.pointerId);
+      });
+      canvas.addEventListener("pointermove", event => {
+        const point = pointerPosition(event);
+        if (grabbed) {
+          grabbed.x = point.x;
+          grabbed.y = point.y;
+          grabbed.vx = grabbed.vy = 0;
+        } else {
+          canvas.style.cursor = blocks.some(block => Math.hypot(point.x - block.x, point.y - block.y) < 28) ? "grab" : "default";
+        }
+      });
+      function release(event) {
+        if (grabbed) canvas.releasePointerCapture?.(event.pointerId);
+        grabbed = null;
+      }
+      canvas.addEventListener("pointerup", release);
+      canvas.addEventListener("pointercancel", release);
+      resetButton.addEventListener("click", () => {
+        build();
+        cancelAnimationFrame(frame);
+        tick(performance.now());
+      });
+      window.addEventListener("resize", () => {
+        resize();
+        cancelAnimationFrame(frame);
+        tick(performance.now());
+      }, { passive: true });
+      resize();
+      tick(performance.now());
+    }
+
     function rewriteMarkdownLinks(currentSrc) {
       document.querySelectorAll("#content a").forEach(a => {
         const href = a.getAttribute("href");
@@ -655,7 +791,7 @@
         content.classList.toggle("home-content", isHome);
         content.innerHTML = isHome ? renderHome() : await renderMarkdown(src, md);
         document.getElementById("raw-link").href = rawMarkdownUrl(src);
-        if (isHome) initHomeBlocks();
+        if (isHome) initHalBlocks();
         else {
           rewriteMarkdownLinks(src);
           rewriteRelativeImages(src);
