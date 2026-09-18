@@ -433,6 +433,12 @@
               <div class="hal-menu-panel" id="hal-menu-panel" hidden>
                 <button type="button" data-hal-layout="grid">ブロック</button>
                 <button type="button" data-hal-layout="clock">時刻を表示</button>
+                <span class="hal-menu-rule" aria-hidden="true"></span>
+                <button type="button" data-hal-layout="message" data-hal-word="HAL LAB.">HAL LAB.</button>
+                <button type="button" data-hal-layout="message" data-hal-word="HAPPY">HAPPY</button>
+                <button type="button" data-hal-layout="message" data-hal-word="CLEAR!">CLEAR!</button>
+                <span class="hal-menu-rule" aria-hidden="true"></span>
+                <button type="button" data-hal-speed="slow" aria-pressed="false">動きをゆっくり</button>
               </div>
             </div>
             <button type="button" class="hal-reset" id="hal-reset">ならべる</button>
@@ -606,6 +612,19 @@
         "9": [[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[1,2],[2,2],[2,3],[0,4],[1,4],[2,4]],
         ":": [[0,1],[0,3]]
       };
+      const letters = {
+        "A": [[0,1],[1,0],[2,1],[0,2],[1,2],[2,2],[0,3],[2,3],[0,4],[2,4]],
+        "C": [[1,0],[2,0],[0,1],[0,2],[0,3],[1,4],[2,4]],
+        "E": [[0,0],[1,0],[2,0],[0,1],[0,2],[1,2],[2,2],[0,3],[0,4],[1,4],[2,4]],
+        "H": [[0,0],[2,0],[0,1],[2,1],[0,2],[1,2],[2,2],[0,3],[2,3],[0,4],[2,4]],
+        "L": [[0,0],[0,1],[0,2],[0,3],[0,4],[1,4],[2,4]],
+        "P": [[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[1,2],[2,2],[0,3],[0,4]],
+        "R": [[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[1,2],[0,3],[2,3],[0,4],[2,4]],
+        "Y": [[0,0],[2,0],[0,1],[2,1],[1,2],[1,3],[1,4]],
+        "!": [[1,0],[1,1],[1,2],[1,3],[1,4]],
+        ".": [[1,4]],
+        " ": []
+      };
       let width = 0;
       let height = 0;
       let dpr = 1;
@@ -616,12 +635,14 @@
       let clockTimer = 0;
       let dragStart = null;
       let dragMoved = false;
+      let motionScale = 1;
+      let messageWord = "HAL LAB.";
 
       function build() {
         blocks = Array.from({ length: columns * rows }, (_, index) => {
           const col = Math.floor(index / rows);
           const row = index % rows;
-          return { col, row, homeX: 0, homeY: 0, x: 0, y: 0, vx: 0, vy: 0, blink: Math.random() * 3500, hidden: false, released: false, pinned: false, restoreAt: 0, layoutSize: null };
+          return { col, row, homeX: 0, homeY: 0, x: 0, y: 0, vx: 0, vy: 0, blink: Math.random() * 3500, hidden: false, released: false, pinned: false, restoreAt: 0, fallStart: 0, fallStartVelocity: 0, holdAt: 0, layoutSize: null };
         });
         applyLayout(true);
       }
@@ -680,13 +701,46 @@
         });
       }
 
+      function messageTargets(word) {
+        const cell = Math.max(12, Math.min(34, (width - 40) / Math.max(8, word.length * 4), (height - 54) / 6));
+        const cells = [];
+        let cursor = 0;
+        for (const char of word) {
+          const shape = letters[char] || [];
+          shape.forEach(([x, y]) => cells.push([cursor + x, y]));
+          cursor += char === " " ? 2 : 4;
+        }
+        const usedWidth = Math.max(1, cursor - 1) * cell;
+        const startX = (width - usedWidth) / 2 + cell / 2;
+        const startY = Math.max(28, Math.min(height - 5 * cell - 28, (height - 5 * cell) / 2));
+        return cells.map(([x, y]) => ({ x: startX + x * cell, y: startY + y * cell, size: Math.max(12, Math.min(35, cell * .8)) }));
+      }
+
+      function arrangeMessage(immediate = false) {
+        const targets = messageTargets(messageWord);
+        blocks.forEach((block, index) => {
+          const target = targets[index];
+          block.hidden = !target;
+          block.released = false;
+          block.pinned = false;
+          block.restoreAt = 0;
+          if (!target) return;
+          block.homeX = target.x;
+          block.homeY = target.y;
+          block.layoutSize = target.size;
+          if (immediate) { block.x = target.x; block.y = target.y; block.vx = block.vy = 0; }
+        });
+      }
+
       function applyLayout(immediate = false) {
         if (displayMode === "clock") arrangeClock(immediate);
+        else if (displayMode === "message") arrangeMessage(immediate);
         else arrangeGrid(immediate);
       }
 
-      function setDisplayMode(mode) {
+      function setDisplayMode(mode, word = "") {
         displayMode = mode;
+        if (word) messageWord = word;
         window.clearInterval(clockTimer);
         clockTimer = 0;
         applyLayout(false);
@@ -694,15 +748,18 @@
       }
 
       function releaseColumnFrom(block) {
-        const restoreAt = performance.now() + 3800;
+        const now = performance.now();
+        const restoreAt = now + 5000;
         for (let row = block.row; row < rows; row++) {
           const child = blockAt(block.col, row);
           if (!child || child.hidden) continue;
           child.released = true;
           child.pinned = false;
           child.restoreAt = restoreAt;
+          child.fallStart = now;
+          child.fallStartVelocity = Math.max(0, Math.min(4, child.vy));
           child.vx = (child.x - width / 2) * .015;
-          child.vy = -1.5 - (row - block.row) * .35;
+          child.vy = child.fallStartVelocity;
         }
       }
 
@@ -732,10 +789,10 @@
         ctx.fillStyle = pulling ? "#1ebfac" : (block.released ? "#f06b5c" : "#303030");
         ctx.fill();
         ctx.fillStyle = "#f5f5f0";
-        const eyeH = blink ? 2 : size * .12;
+        const eyeH = block.pinned || blink ? 2 : size * .12;
         roundRect(-size * .28, -size * .12, size * .13, eyeH, 2); ctx.fill();
         roundRect(size * .15, -size * .12, size * .13, eyeH, 2); ctx.fill();
-        roundRect(-size * .12, size * .17, size * .24, pulling ? size * .17 : size * .07, 2); ctx.fill();
+        roundRect(-size * .12, size * .17, size * .24, pulling ? size * .17 : (block.pinned ? size * .13 : size * .07), 2); ctx.fill();
         ctx.restore();
       }
 
@@ -750,6 +807,11 @@
         ctx.lineWidth = 1.5;
         const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+        if (grabbed && !grabbed.pinned && !dragMoved && time >= grabbed.holdAt) {
+          grabbed.pinned = true;
+          grabbed.vx = grabbed.vy = 0;
+        }
+
         blocks.forEach(block => {
           if (block.hidden) return;
           if (block.released) {
@@ -759,10 +821,12 @@
               block.y = block.homeY;
               block.vx = block.vy = 0;
             } else {
-              block.vy += .32;
+              const t = Math.min(1, (time - block.fallStart) / 1150);
+              const eased = 1 - Math.cos(t * Math.PI / 2);
+              block.vy = block.fallStartVelocity + (9 - block.fallStartVelocity) * eased;
               block.vx *= .99;
-              block.x += block.vx;
-              block.y += block.vy;
+              block.x += block.vx * motionScale;
+              block.y += block.vy * motionScale;
               return;
             }
           }
@@ -770,12 +834,12 @@
             const parent = displayMode === "grid" && block.row ? blockAt(block.col, block.row - 1) : null;
             const desiredX = block.homeX + (parent ? (parent.x - parent.homeX) * .18 : 0);
             const desiredY = block.homeY + (parent ? (parent.y - parent.homeY) * .18 : 0);
-            block.vx += (desiredX - block.x) * .055;
-            block.vy += (desiredY - block.y) * .055;
+            block.vx += (desiredX - block.x) * .055 * motionScale;
+            block.vy += (desiredY - block.y) * .055 * motionScale;
             block.vx *= .76;
             block.vy *= .76;
-            block.x += block.vx;
-            block.y += block.vy;
+            block.x += block.vx * motionScale;
+            block.y += block.vy * motionScale;
           }
         });
 
@@ -807,7 +871,10 @@
           const distance = Math.hypot(point.x - block.x, point.y - block.y);
           return !block.hidden && !block.released && distance < nearest.distance ? { block, distance } : nearest;
         }, { block: null, distance: 32 }).block;
-        if (grabbed) canvas.setPointerCapture(event.pointerId);
+        if (grabbed) {
+          grabbed.holdAt = performance.now() + 300;
+          canvas.setPointerCapture(event.pointerId);
+        }
       });
       canvas.addEventListener("pointermove", event => {
         const point = pointerPosition(event);
@@ -816,6 +883,7 @@
           grabbed.y = point.y;
           grabbed.vx = grabbed.vy = 0;
           dragMoved ||= Math.hypot(point.x - dragStart.x, point.y - dragStart.y) > 3;
+          if (dragMoved && !grabbed.pinned) grabbed.holdAt = performance.now() + 300;
           const releaseDistance = Math.min(600, Math.max(300, width * .38));
           if (Math.hypot(point.x - grabbed.homeX, point.y - grabbed.homeY) > releaseDistance) {
             releaseColumnFrom(grabbed);
@@ -854,9 +922,17 @@
       });
       document.querySelectorAll("[data-hal-layout]").forEach(button => {
         button.addEventListener("click", () => {
-          setDisplayMode(button.dataset.halLayout);
+          setDisplayMode(button.dataset.halLayout, button.dataset.halWord);
           menuPanel.hidden = true;
           menuToggle.setAttribute("aria-expanded", "false");
+        });
+      });
+      document.querySelectorAll("[data-hal-speed]").forEach(button => {
+        button.addEventListener("click", () => {
+          const slow = motionScale === 1;
+          motionScale = slow ? .38 : 1;
+          button.setAttribute("aria-pressed", String(slow));
+          button.textContent = slow ? "通常の速さに戻す" : "動きをゆっくり";
         });
       });
       window.addEventListener("resize", () => {

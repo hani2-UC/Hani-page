@@ -889,6 +889,7 @@ body.home-page {
 .hal-menu { position: relative; }
 .hal-menu-panel { position: absolute; top: calc(100% + 8px); right: 0; display: grid; min-width: 132px; padding: 5px; background: rgba(255,255,255,.96); border: 1px solid #2d2d2d; box-shadow: 3px 3px 0 rgba(0,0,0,.12); }
 .hal-menu-panel[hidden] { display: none; }
+.hal-menu-rule { display: block; height: 1px; margin: 4px; background: #d2d2cc; }
 .hal-menu-panel button { padding: 9px 10px; color: #292929; background: transparent; border: 0; font: inherit; font-size: .72rem; font-weight: 700; text-align: left; cursor: pointer; }
 .hal-menu-panel button:hover,.hal-menu-panel button:focus-visible { background: #ffcf3f; outline: 0; }
 
