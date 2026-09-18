@@ -240,11 +240,18 @@ input[type="range"]{
   main{grid-template-columns:1fr;grid-template-rows:62vh auto}
   aside{overflow:visible}
 }
+/* hani.moe block-lab presentation skin: simulation behavior remains unchanged */
+:root{--bg:#f4f4ef;--panel:#ffffff;--panel2:#fbfbf7;--border:#2f2f2e;--borderDark:#2f2f2e;--text:#292928;--muted:#62625e;--button:#ffffff;--buttonActive:#ffcf3f;--line:#282827;--hit:#14a999;--bad:#c95245}
+html,body{background:var(--bg);background-image:radial-gradient(rgba(0,0,0,.08) .6px,transparent .7px);background-size:7px 7px;font-family:"Yu Gothic UI",Meiryo,system-ui,sans-serif}
+body{grid-template-rows:auto 1fr}header{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:20px;padding:14px max(18px,4vw);background:rgba(255,255,255,.88);border-bottom:1px solid var(--line)}header h1{font-size:clamp(16px,2vw,22px);font-weight:800;letter-spacing:.02em}header h1::before{content:"GAME EXPERIMENT / ";color:#168c80;font-size:10px;letter-spacing:.12em}.site-return{color:#292928;font-size:13px;font-weight:900;letter-spacing:.06em;text-decoration:none}.mini-blocks{display:flex;gap:5px}.mini-blocks i{position:relative;width:24px;height:21px;background:#30302e;border-radius:4px}.mini-blocks i::before,.mini-blocks i::after{content:"";position:absolute;top:7px;width:4px;height:3px;border-radius:1px;background:#f7f7ef}.mini-blocks i::before{left:6px}.mini-blocks i::after{right:6px}.mini-blocks i:nth-child(2){background:#20b9aa}.mini-blocks i:nth-child(3){background:#ffcf3f}
+main{gap:14px;padding:14px;background:transparent}.stage{border:1px solid var(--line);box-shadow:5px 5px 0 rgba(0,0,0,.12)}aside{border:1px solid var(--line);background:rgba(255,255,255,.86);box-shadow:5px 5px 0 rgba(0,0,0,.12);padding:12px}.stat,.section,.check,.info{border-color:#b6b6ad;background:rgba(255,255,255,.8)}.stat{border-top:4px solid #30302e}.stat:nth-child(2){border-top-color:#20b9aa}.measure{color:#292928}.hitNum{color:#168c80}.section h2{font-weight:800}.section h2::before{content:"● ";color:#20b9aa;font-size:10px}button{border:1px solid var(--line);border-radius:999px;background:#fff;font-weight:700}button:hover{background:#fff5c6}button:active,button.toggleOn{border-style:solid;background:#ffcf3f;outline:0}.toast{border-color:var(--line);border-radius:5px;background:#fff}.modalBox{border:1px solid var(--line);background:#fff;box-shadow:8px 8px 0 rgba(0,0,0,.18)}@media(max-width:900px){header{grid-template-columns:1fr auto;gap:8px}header h1{grid-column:1/-1;grid-row:2}header h1::before{display:block;margin-bottom:3px}.mini-blocks{grid-column:2}.site-return{grid-column:1}}
 </style>
 </head>
 <body>
 <header>
+  <a class="site-return" href="/">hani.moe</a>
   <h1>バーチャルビュフォンの針</h1>
+  <div class="mini-blocks" aria-hidden="true"><i></i><i></i><i></i></div>
 </header>
 <main>
   <section class="stage" id="stage">
