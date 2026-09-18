@@ -788,7 +788,9 @@
         const blink = (time + block.blink) % 3600 < 95;
         ctx.save();
         ctx.translate(block.x, block.y);
-        ctx.scale(1, .18 + .82 * block.sproutProgress);
+        // Only the returning block grows vertically. Falling blocks retain
+        // their normal proportions all the way down.
+        ctx.scale(1, block.sproutAt ? .18 + .82 * block.sproutProgress : 1);
         roundRect(-size / 2, -size * .42, size, size * .84, Math.max(4, size * .13));
         ctx.fillStyle = pulling ? "#1ebfac" : (block.released ? "#f06b5c" : "#303030");
         ctx.fill();
@@ -861,7 +863,9 @@
         });
 
         if (displayMode === "grid") blocks.forEach(block => {
-          if (block.hidden || block.released) return;
+          // Let the face appear first; the string follows near the end of
+          // the sprout so it never looks as though it appeared by itself.
+          if (block.hidden || block.released || (block.sproutAt && block.sproutProgress < .84)) return;
           const parent = block.row ? blockAt(block.col, block.row - 1) : null;
           if (parent?.released || parent?.hidden) return;
           const fromX = parent ? parent.x : block.homeX;
