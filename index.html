@@ -642,7 +642,7 @@
         blocks = Array.from({ length: columns * rows }, (_, index) => {
           const col = Math.floor(index / rows);
           const row = index % rows;
-          return { col, row, homeX: 0, homeY: 0, x: 0, y: 0, vx: 0, vy: 0, blink: Math.random() * 3500, hidden: false, released: false, pinned: false, restoreAt: 0, fallStart: 0, fallStartVelocity: 0, holdAt: 0, layoutSize: null };
+          return { col, row, homeX: 0, homeY: 0, x: 0, y: 0, vx: 0, vy: 0, blink: Math.random() * 3500, hidden: false, released: false, pinned: false, restoreAt: 0, fallStart: 0, fallStartVelocity: 0, holdAt: 0, sproutAt: 0, sproutFromY: 0, sproutProgress: 1, layoutSize: null };
         });
         applyLayout(true);
       }
@@ -755,7 +755,10 @@
           if (!child || child.hidden) continue;
           child.released = true;
           child.pinned = false;
-          child.restoreAt = restoreAt;
+          // Rebuild the hanging column from its top, one face at a time.
+          child.restoreAt = restoreAt + (row - block.row) * 135;
+          child.sproutAt = 0;
+          child.sproutProgress = 0;
           child.fallStart = now;
           child.fallStartVelocity = Math.max(0, Math.min(4, child.vy));
           child.vx = (child.x - width / 2) * .015;
@@ -785,6 +788,7 @@
         const blink = (time + block.blink) % 3600 < 95;
         ctx.save();
         ctx.translate(block.x, block.y);
+        ctx.scale(1, .18 + .82 * block.sproutProgress);
         roundRect(-size / 2, -size * .42, size, size * .84, Math.max(4, size * .13));
         ctx.fillStyle = pulling ? "#1ebfac" : (block.released ? "#f06b5c" : "#303030");
         ctx.fill();
@@ -817,8 +821,10 @@
           if (block.released) {
             if (time >= block.restoreAt) {
               block.released = false;
+              block.sproutAt = time;
+              block.sproutFromY = block.homeY + blockHalfHeight(block) * .95;
               block.x = block.homeX;
-              block.y = block.homeY;
+              block.y = block.sproutFromY;
               block.vx = block.vy = 0;
             } else {
               const t = Math.min(1, (time - block.fallStart) / 1150);
@@ -829,6 +835,17 @@
               block.y += block.vy * motionScale;
               return;
             }
+          }
+          if (block.sproutAt) {
+            const progress = Math.min(1, (time - block.sproutAt) / 380);
+            const eased = 1 - Math.pow(1 - progress, 3);
+            block.sproutProgress = eased;
+            block.x = block.homeX;
+            block.y = block.sproutFromY + (block.homeY - block.sproutFromY) * eased;
+            if (progress < 1) return;
+            block.sproutAt = 0;
+            block.sproutProgress = 1;
+            block.y = block.homeY;
           }
           if (block !== grabbed && !block.pinned) {
             const parent = displayMode === "grid" && block.row ? blockAt(block.col, block.row - 1) : null;
