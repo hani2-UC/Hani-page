@@ -76,10 +76,25 @@
     user-select: none;
     pointer-events: none;
   }
+  .home-link {
+    position: fixed;
+    z-index: 3;
+    right: 14px;
+    top: 14px;
+    padding: 8px 11px;
+    color: #292928;
+    background: #ffffff;
+    border: 1px solid #292928;
+    font: 800 11px/1 "Segoe UI", "Yu Gothic UI", sans-serif;
+    letter-spacing: .06em;
+    text-decoration: none;
+  }
+  .home-link:hover { background: #ffcf3f; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+<a class="home-link" href="/">hani.moe</a>
 <div class="panel">
   <b id="phaseText">読み込み中</b>
   <div id="statusText"></div>

@@ -281,6 +281,174 @@ th {
   }
 }
 
+/* Shared hani.moe page language: the home page's paper, rules and hanging labels. */
+body:not(.home-page) {
+  background: #f4f4ef;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.08) 0.6px, transparent 0.7px);
+  background-size: 7px 7px;
+}
+
+body:not(.home-page) .site-header {
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 20px clamp(20px, 5vw, 76px);
+  color: #282827;
+  background: rgba(255, 255, 255, 0.92);
+  border: 0;
+  border-bottom: 1px solid #2e2e2d;
+}
+
+body:not(.home-page) .site-title {
+  position: relative;
+  margin: 0;
+  padding-left: 16px;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.07em;
+}
+
+body:not(.home-page) .site-title::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -14px;
+  width: 1px;
+  height: 10px;
+  background: #2e2e2d;
+}
+
+body:not(.home-page) .site-header nav {
+  justify-content: flex-end;
+  gap: clamp(13px, 2.4vw, 31px);
+}
+
+body:not(.home-page) .site-header a {
+  position: relative;
+  color: #282827;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+}
+
+body:not(.home-page) .site-header a::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -8px;
+  left: 0;
+  height: 2px;
+  background: #20b9aa;
+  transform: scaleX(0);
+  transition: transform 0.16s ease;
+}
+
+body:not(.home-page) .site-header a:hover::after,
+body:not(.home-page) .site-header a:focus-visible::after { transform: scaleX(1); }
+
+body:not(.home-page) .content-box {
+  width: min(1080px, calc(100% - 48px));
+  min-height: 420px;
+  margin: 44px auto;
+  padding: clamp(32px, 5vw, 68px);
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid #2e2e2d;
+  box-shadow: 5px 5px 0 rgba(0, 0, 0, 0.12);
+}
+
+body:not(.home-page) .content-box > h1,
+body:not(.home-page) .diary-article h1 {
+  position: relative;
+  margin: 0 0 42px;
+  padding: 0 0 22px;
+  border-bottom: 1px solid #2e2e2d;
+  font-size: clamp(2.35rem, 6vw, 5.1rem);
+  font-weight: 800;
+  letter-spacing: -0.07em;
+  line-height: 1.06;
+}
+
+body:not(.home-page) .content-box > h1::before,
+body:not(.home-page) .diary-article h1::before {
+  content: "HANI.MOE / NOTE";
+  position: absolute;
+  top: -20px;
+  left: 0;
+  color: #258d82;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+}
+
+body:not(.home-page) .content-box h2 {
+  position: relative;
+  margin: 64px 0 20px;
+  padding: 24px 0 0 18px;
+  border: 0;
+  border-top: 1px solid #2e2e2d;
+  font-size: clamp(1.4rem, 2.8vw, 2.25rem);
+  letter-spacing: -0.05em;
+}
+
+body:not(.home-page) .content-box h2::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 16px;
+  background: #2e2e2d;
+}
+
+body:not(.home-page) .content-box h3 {
+  margin-top: 38px;
+  padding-bottom: 8px;
+  border-bottom: 1px dotted #777771;
+}
+
+body:not(.home-page) .content-box a { color: #167d73; font-weight: 700; text-underline-offset: 4px; }
+body:not(.home-page) .content-box a:hover { color: #282827; }
+body:not(.home-page) .content-box blockquote { margin: 26px 0; padding: 18px 22px; color: #50504b; background: #fff8d9; border: 1px solid #2e2e2d; border-left: 7px solid #ffcf3f; }
+body:not(.home-page) .content-box pre { padding: 18px; color: #eeeeea; background: #30302e; border: 1px solid #2e2e2d; }
+body:not(.home-page) .content-box code { background: #efefe9; }
+body:not(.home-page) .content-box pre code { background: transparent; }
+body:not(.home-page) .content-box table { margin: 24px 0 34px; border: 1px solid #2e2e2d; }
+body:not(.home-page) .content-box th,
+body:not(.home-page) .content-box td { padding: 12px 14px; border: 1px solid #2e2e2d; }
+body:not(.home-page) .content-box th { color: #282827; background: #ffcf3f; text-align: left; }
+body:not(.home-page) .download-button { padding: 11px 17px; color: #282827; background: #ffcf3f; border: 1px solid #2e2e2d; box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.12); }
+body:not(.home-page) .download-button:hover { color: #282827; background: #ffe47e; }
+body:not(.home-page) .notice { background: #fff; border: 1px solid #2e2e2d; }
+
+body:not(.home-page) .diary-index-head { padding-top: 20px; border-top: 1px solid #2e2e2d; }
+body:not(.home-page) .diary-index-head h2 { margin: 0; padding: 0; border: 0; }
+body:not(.home-page) .diary-card-grid { gap: 12px; }
+body:not(.home-page) .diary-card { min-height: 240px; border: 1px solid #2e2e2d; border-radius: 0; box-shadow: none; }
+body:not(.home-page) .diary-card:hover { border-color: #2e2e2d; background: #fff9df; box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.12); }
+body:not(.home-page) .diary-card-thumb { background: #f2f2ec; border-bottom-color: #2e2e2d; }
+body:not(.home-page) .diary-card-body { padding: 18px; }
+body:not(.home-page) .diary-card-title { font-size: 1.15rem; }
+body:not(.home-page) .game-frame { border: 1px solid #2e2e2d; box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.12); }
+
+body:not(.home-page) .site-footer { width: min(1080px, calc(100% - 48px)); margin: 0 auto 34px; padding: 18px 0; text-align: left; border-top: 1px solid #2e2e2d; }
+body:not(.home-page) .site-footer a { color: #55554f; }
+
+@media (max-width: 680px) {
+  body:not(.home-page) .site-header { min-height: 0; display: block; padding: 14px 16px 12px; }
+  body:not(.home-page) .site-header nav { margin-top: 11px; justify-content: flex-start; gap: 8px 15px; }
+  body:not(.home-page) .site-header a { font-size: 0.66rem; }
+  body:not(.home-page) .content-box { width: calc(100% - 28px); margin: 20px auto; padding: 34px 22px; }
+  body:not(.home-page) .content-box > h1,
+  body:not(.home-page) .diary-article h1 { margin-bottom: 30px; font-size: 2.45rem; }
+  body:not(.home-page) .content-box th,
+  body:not(.home-page) .content-box td { padding: 9px; font-size: 0.86rem; }
+  body:not(.home-page) .site-footer { width: calc(100% - 28px); }
+}
+
 .download-note {
   display: block;
   color: var(--muted);
