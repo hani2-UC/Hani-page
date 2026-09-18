@@ -862,11 +862,13 @@
           }
         });
 
-        if (displayMode === "grid") blocks.forEach(block => {
+        if (displayMode === "grid" || displayMode === "clock") blocks.forEach(block => {
           // Let the face appear first; the string follows near the end of
           // the sprout so it never looks as though it appeared by itself.
           if (block.hidden || block.released || (block.sproutAt && block.sproutProgress < .84)) return;
-          const parent = block.row ? blockAt(block.col, block.row - 1) : null;
+          // The grid hangs from the block above it. Clock characters keep a
+          // clean, direct string to the ceiling at their own x position.
+          const parent = displayMode === "grid" && block.row ? blockAt(block.col, block.row - 1) : null;
           if (parent?.released || parent?.hidden) return;
           const fromX = parent ? parent.x : block.homeX;
           const fromY = parent ? parent.y + blockHalfHeight(parent) : 0;
