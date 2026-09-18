@@ -856,11 +856,17 @@ body.home-page {
   display: none;
 }
 
-.hal-reset {
+.hal-tools {
   position: absolute;
   top: clamp(22px, 5vh, 54px);
   right: clamp(20px, 5vw, 76px);
-  z-index: 2;
+  z-index: 3;
+  display: flex;
+  gap: 8px;
+}
+
+.hal-reset,
+.hal-menu-toggle {
   padding: 8px 14px;
   border: 1px solid #2d2d2d;
   border-radius: 999px;
@@ -873,10 +879,18 @@ body.home-page {
 }
 
 .hal-reset:hover,
-.hal-reset:focus-visible {
+.hal-reset:focus-visible,
+.hal-menu-toggle:hover,
+.hal-menu-toggle:focus-visible {
   color: #fff;
   background: #242424;
 }
+
+.hal-menu { position: relative; }
+.hal-menu-panel { position: absolute; top: calc(100% + 8px); right: 0; display: grid; min-width: 132px; padding: 5px; background: rgba(255,255,255,.96); border: 1px solid #2d2d2d; box-shadow: 3px 3px 0 rgba(0,0,0,.12); }
+.hal-menu-panel[hidden] { display: none; }
+.hal-menu-panel button { padding: 9px 10px; color: #292929; background: transparent; border: 0; font: inherit; font-size: .72rem; font-weight: 700; text-align: left; cursor: pointer; }
+.hal-menu-panel button:hover,.hal-menu-panel button:focus-visible { background: #ffcf3f; outline: 0; }
 
 #hal-blocks {
   grid-row: 1;
@@ -972,9 +986,14 @@ body.home-page {
     left: 18px;
   }
 
-  .hal-reset {
+  .hal-tools {
     top: 18px;
     right: 16px;
+    gap: 5px;
+  }
+
+  .hal-reset,
+  .hal-menu-toggle {
     padding: 6px 10px;
     font-size: 0.68rem;
   }
