@@ -434,10 +434,6 @@
                 <button type="button" data-hal-layout="grid">ブロック</button>
                 <button type="button" data-hal-layout="clock">時刻を表示</button>
                 <span class="hal-menu-rule" aria-hidden="true"></span>
-                <button type="button" data-hal-layout="message" data-hal-word="HAL LAB.">HAL LAB.</button>
-                <button type="button" data-hal-layout="message" data-hal-word="HAPPY">HAPPY</button>
-                <button type="button" data-hal-layout="message" data-hal-word="CLEAR!">CLEAR!</button>
-                <span class="hal-menu-rule" aria-hidden="true"></span>
                 <button type="button" data-hal-speed="slow" aria-pressed="false">動きをゆっくり</button>
               </div>
             </div>
@@ -614,19 +610,6 @@
         "9": [[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[1,2],[2,2],[2,3],[0,4],[1,4],[2,4]],
         ":": [[0,1],[0,3]]
       };
-      const letters = {
-        "A": [[0,1],[1,0],[2,1],[0,2],[1,2],[2,2],[0,3],[2,3],[0,4],[2,4]],
-        "C": [[1,0],[2,0],[0,1],[0,2],[0,3],[1,4],[2,4]],
-        "E": [[0,0],[1,0],[2,0],[0,1],[0,2],[1,2],[2,2],[0,3],[0,4],[1,4],[2,4]],
-        "H": [[0,0],[2,0],[0,1],[2,1],[0,2],[1,2],[2,2],[0,3],[2,3],[0,4],[2,4]],
-        "L": [[0,0],[0,1],[0,2],[0,3],[0,4],[1,4],[2,4]],
-        "P": [[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[1,2],[2,2],[0,3],[0,4]],
-        "R": [[0,0],[1,0],[2,0],[0,1],[2,1],[0,2],[1,2],[0,3],[2,3],[0,4],[2,4]],
-        "Y": [[0,0],[2,0],[0,1],[2,1],[1,2],[1,3],[1,4]],
-        "!": [[1,0],[1,1],[1,2],[1,3],[1,4]],
-        ".": [[1,4]],
-        " ": []
-      };
       let width = 0;
       let height = 0;
       let dpr = 1;
@@ -638,7 +621,6 @@
       let dragStart = null;
       let dragMoved = false;
       let motionScale = 1;
-      let messageWord = "HAL LAB.";
 
       function build() {
         blocks = Array.from({ length: columns * rows }, (_, index) => {
@@ -719,46 +701,13 @@
         });
       }
 
-      function messageTargets(word) {
-        const cell = Math.max(12, Math.min(34, (width - 40) / Math.max(8, word.length * 4), (height - 54) / 6));
-        const cells = [];
-        let cursor = 0;
-        for (const char of word) {
-          const shape = letters[char] || [];
-          shape.forEach(([x, y]) => cells.push([cursor + x, y]));
-          cursor += char === " " ? 2 : 4;
-        }
-        const usedWidth = Math.max(1, cursor - 1) * cell;
-        const startX = (width - usedWidth) / 2 + cell / 2;
-        const startY = Math.max(28, Math.min(height - 5 * cell - 28, (height - 5 * cell) / 2));
-        return cells.map(([x, y]) => ({ x: startX + x * cell, y: startY + y * cell, size: Math.max(12, Math.min(35, cell * .8)) }));
-      }
-
-      function arrangeMessage(immediate = false) {
-        const targets = messageTargets(messageWord);
-        blocks.forEach((block, index) => {
-          const target = targets[index];
-          block.hidden = !target;
-          block.released = false;
-          block.pinned = false;
-          block.restoreAt = 0;
-          if (!target) return;
-          block.homeX = target.x;
-          block.homeY = target.y;
-          block.layoutSize = target.size;
-          if (immediate) { block.x = target.x; block.y = target.y; block.vx = block.vy = 0; }
-        });
-      }
-
       function applyLayout(immediate = false) {
         if (displayMode === "clock") arrangeClock(immediate);
-        else if (displayMode === "message") arrangeMessage(immediate);
         else arrangeGrid(immediate);
       }
 
-      function setDisplayMode(mode, word = "") {
+      function setDisplayMode(mode) {
         displayMode = mode;
-        if (word) messageWord = word;
         window.clearInterval(clockTimer);
         clockTimer = 0;
         applyLayout(false);
@@ -960,7 +909,7 @@
       });
       document.querySelectorAll("[data-hal-layout]").forEach(button => {
         button.addEventListener("click", () => {
-          setDisplayMode(button.dataset.halLayout, button.dataset.halWord);
+          setDisplayMode(button.dataset.halLayout);
           menuPanel.hidden = true;
           menuToggle.setAttribute("aria-expanded", "false");
         });
