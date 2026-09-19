@@ -440,7 +440,7 @@
             <button type="button" class="hal-reset" id="hal-reset">ならべる</button>
           </div>
           <canvas id="hal-blocks" aria-label="ドラッグして揺らせる、吊り下げられた顔つきブロック"></canvas>
-          <p class="hal-hint">ブロックをつかんで、ひっぱる。遠くまで引くと、つながりが外れる。</p>
+          <p class="hal-hint">ブロックをつかんで、ひっぱる。少し止めると固定。遠くまで引くと、つながりが外れる。</p>
           <nav class="hal-hangers" aria-label="メインコンテンツ">
             <a href="/index.html?src=works.md">作ったもの<small>WORKS</small></a>
             <a href="/video-editor/">HANI CUT<small>VIDEO EDITOR</small></a>
@@ -618,8 +618,6 @@
       let frame = 0;
       let displayMode = "grid";
       let clockTimer = 0;
-      let dragStart = null;
-      let dragMoved = false;
       let motionScale = 1;
 
       function build() {
@@ -780,7 +778,7 @@
         ctx.lineWidth = 1.5;
         const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-        if (grabbed && !grabbed.pinned && !dragMoved && time >= grabbed.holdAt) {
+        if (grabbed && !grabbed.pinned && time >= grabbed.holdAt) {
           grabbed.pinned = true;
           grabbed.vx = grabbed.vy = 0;
         }
@@ -855,8 +853,6 @@
 
       canvas.addEventListener("pointerdown", event => {
         const point = pointerPosition(event);
-        dragStart = point;
-        dragMoved = false;
         grabbed = blocks.reduce((nearest, block) => {
           const distance = Math.hypot(point.x - block.x, point.y - block.y);
           return !block.hidden && !block.released && distance < nearest.distance ? { block, distance } : nearest;
@@ -865,7 +861,7 @@
           // A fixed block is released by picking it up again. Ordinary drags
           // never become fixed merely because the pointer is released.
           if (grabbed.pinned) grabbed.pinned = false;
-          grabbed.holdAt = performance.now() + 300;
+          grabbed.holdAt = performance.now() + 450;
           canvas.setPointerCapture(event.pointerId);
         }
       });
@@ -875,8 +871,7 @@
           grabbed.x = point.x;
           grabbed.y = point.y;
           grabbed.vx = grabbed.vy = 0;
-          dragMoved ||= Math.hypot(point.x - dragStart.x, point.y - dragStart.y) > 3;
-          if (dragMoved && !grabbed.pinned) grabbed.holdAt = performance.now() + 300;
+          if (!grabbed.pinned) grabbed.holdAt = performance.now() + 450;
           const releaseDistance = Math.min(600, Math.max(300, width * .38));
           if (Math.hypot(point.x - grabbed.homeX, point.y - grabbed.homeY) > releaseDistance) {
             releaseColumnFrom(grabbed);
@@ -892,8 +887,6 @@
           canvas.releasePointerCapture?.(event.pointerId);
         }
         grabbed = null;
-        dragStart = null;
-        dragMoved = false;
       }
       canvas.addEventListener("pointerup", release);
       canvas.addEventListener("pointercancel", release);
