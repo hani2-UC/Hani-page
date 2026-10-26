@@ -1022,3 +1022,60 @@ body.home-page {
   .hal-hangers a:nth-child(2n) { border-right: 0; }
   .hal-hangers a::before { height: 11px; }
 }
+
+/* Keep the published home layout; let short screens scroll without clipping. */
+@media (max-width: 680px), (max-width: 1024px) and (max-height: 600px) and (orientation: landscape) {
+  body.home-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 100svh;
+  }
+
+  .home-page .home-content {
+    display: grid;
+    flex: 1;
+    height: auto;
+    margin: 0;
+    padding: 0;
+    min-width: 0;
+  }
+
+  .home-hal {
+    height: auto;
+    grid-template-rows: minmax(480px, 1fr) auto auto;
+  }
+
+  #hal-blocks {
+    display: block;
+    min-width: 0;
+    height: 480px;
+    min-height: 100%;
+    contain: size;
+  }
+
+  .hal-hint {
+    position: static;
+    grid-row: 2;
+    padding: 12px 16px;
+  }
+
+  .hal-hangers {
+    grid-row: 3;
+  }
+}
+
+@media (min-width: 681px) and (max-width: 1024px) and (max-height: 600px) and (orientation: landscape) {
+  .home-page .site-header {
+    min-height: 0;
+    padding: 14px 20px;
+  }
+
+  .home-page .site-title {
+    position: static;
+    flex-shrink: 0;
+  }
+
+  .home-page .site-header nav {
+    gap: 8px 16px;
+  }
+}

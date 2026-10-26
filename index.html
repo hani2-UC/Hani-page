@@ -5,7 +5,7 @@
   <title>hani.moe</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <base href="/">
-  <link rel="stylesheet" href="style.css?v=home-clock-20260918">
+  <link rel="stylesheet" href="style.css?v=home-clock-mobile-20261026-3">
 </head>
 <body>
   <header class="site-header">
@@ -424,7 +424,6 @@
       return `
         <section class="home-hal" aria-labelledby="home-title">
           <div class="hal-wordmark">
-            <p>HANI'S LITTLE LAB</p>
             <h1 id="home-title">hani.moe</h1>
           </div>
           <div class="hal-tools">
@@ -594,7 +593,6 @@
 
       const ctx = canvas.getContext("2d");
       console.log("%c\n _   _    _    _   _ ___\n| | | |  / \\  | \\ | |_ _|\n| |_| | / _ \\ |  \\| || |\n|  _  |/ ___ \\| |\\  || |\n|_| |_/_/   \\_\\_| \\_|___|\n", "color:#20bcae;font:700 13px/1.15 monospace;");
-      console.log("%cHANI'S LITTLE LAB — welcome in!", "color:#303030;font:700 12px monospace;");
       const columns = 11;
       const rows = 8;
       const digits = {
@@ -654,17 +652,20 @@
         const now = new Date();
         const text = [now.getHours(), now.getMinutes(), now.getSeconds()].map(value => String(value).padStart(2, "0")).join(":");
         const blockSize = Math.max(24, Math.min(42, width / 28));
-        // Keep the clock made from the same full-size blocks as the opening
-        // grid. Narrow displays split the time across lines instead of making
-        // a second, tiny kind of block.
-        const lines = width >= 1168
+        const landscape = window.matchMedia("(max-width: 1024px) and (max-height: 600px) and (orientation: landscape)").matches;
+        // Fit the complete time on one line on phones held horizontally.
+        // Portrait layouts keep their existing full-size, stacked digits.
+        const lines = width >= 1168 || landscape
           ? [text]
           : width >= 640
             ? [text.slice(0, 5), text.slice(6, 8)]
             : [text.slice(0, 2), text.slice(3, 5), text.slice(6, 8)];
         const cursorWidth = line => [...line].reduce((sum, char) => sum + (char === ":" ? 2 : 4), 0);
         const widest = Math.max(...lines.map(line => Math.max(1, cursorWidth(line) - 1)));
-        const cell = Math.max(blockSize, Math.min(blockSize * 1.12, (width - 32) / widest));
+        const cell = landscape
+          ? Math.min(blockSize * 1.12, (width - 32) / widest)
+          : Math.max(blockSize, Math.min(blockSize * 1.12, (width - 32) / widest));
+        const size = landscape ? Math.min(blockSize, cell / 1.12) : null;
         const rowHeight = 5 * cell;
         const lineGap = blockSize * 1.3;
         const totalHeight = lines.length * rowHeight + (lines.length - 1) * lineGap;
@@ -676,7 +677,7 @@
           let cursor = 0;
           for (const char of line) {
             const shape = digits[char];
-            shape.forEach(([x, y]) => targets.push({ x: startX + (cursor + x) * cell, y: startY + lineIndex * (rowHeight + lineGap) + y * cell }));
+            shape.forEach(([x, y]) => targets.push({ x: startX + (cursor + x) * cell, y: startY + lineIndex * (rowHeight + lineGap) + y * cell, size }));
             cursor += char === ":" ? 2 : 4;
           }
         });
@@ -691,7 +692,7 @@
           block.released = false;
           block.pinned = false;
           block.restoreAt = 0;
-          block.layoutSize = null;
+          block.layoutSize = target ? target.size : null;
           if (!target) return;
           block.homeX = target.x;
           block.homeY = target.y;
